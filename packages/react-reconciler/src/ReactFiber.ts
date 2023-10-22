@@ -1,5 +1,5 @@
-import { Props, Key, Ref } from 'shared/ReactTypes';
-import { WorkTag } from './ReactWorkTags';
+import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
+import { FunctionComponent, HostComponent, WorkTag } from './ReactWorkTags';
 import { Flags, NoFlags } from './ReactFiberFlags';
 import { Container } from 'hostConfig';
 import { UpdateQueue } from './ReactFiberUpdateQueue';
@@ -23,6 +23,7 @@ export class FiberNode {
 
 	alternate: FiberNode | null;
 	flags: Flags;
+	subtreeFlags: Flags;
 	constructor(tag: WorkTag, pendingProps: Props, key: Key) {
 		this.tag = tag;
 		this.key = key;
@@ -42,6 +43,7 @@ export class FiberNode {
 
 		this.alternate = null;
 		this.flags = NoFlags;
+		this.subtreeFlags = NoFlags;
 	}
 }
 
@@ -71,6 +73,7 @@ export function createWorkInProgress(
 		// update
 		wip.pendingProps = pendingProps;
 		wip.flags = NoFlags;
+		wip.subtreeFlags = NoFlags;
 	}
 	wip.type = current.type;
 	wip.updateQueue = current.updateQueue;
@@ -78,4 +81,18 @@ export function createWorkInProgress(
 	wip.memorizedProps = current.memorizedProps;
 	wip.memorizedState = current.memorizedState;
 	return wip;
+}
+
+export function createFiberFromElement(element: ReactElementType): FiberNode {
+	const { type, key, props } = element;
+	let fiberTag: WorkTag = FunctionComponent;
+
+	if (typeof type === 'string') {
+		fiberTag = HostComponent;
+	} else if (typeof type !== 'function' && __DEV__) {
+		console.warn('This type is not handled');
+	}
+	const fiber = new FiberNode(fiberTag, props, key);
+	fiber.type = type;
+	return fiber;
 }
