@@ -1,6 +1,8 @@
 import { FiberNode, FiberRootNode, createWorkInProgress } from './ReactFiber';
 import { beginWork } from './ReactFiberBeginWork';
+import { commitMutationEffects } from './ReactFiberCommitWork';
 import { completeWork } from './ReactFiberCompleteWork';
+import { MutationMask, NoFlags } from './ReactFiberFlags';
 import { HostRoot } from './ReactWorkTags';
 
 let workInProgress: FiberNode | null = null;
@@ -13,6 +15,9 @@ export function scheduleUpdateOnFiber(fiber: FiberNode) {
 }
 
 function markUpdateFromFiberToRoot(fiber: FiberNode): FiberRootNode | null {
+	if (__DEV__) {
+		console.warn('markUpdateFromFiberToRoot start');
+	}
 	while (fiber.return) {
 		fiber = fiber.return;
 	}
@@ -40,9 +45,36 @@ function renderRoot(root: FiberRootNode) {
 			workInProgress = null;
 		}
 	}
-
+	if (__DEV__) {
+		console.log(root);
+	}
 	const finishedWork = root.current.alternate;
 	root.finishedWork = finishedWork;
+	commitRoot(root);
+}
+
+function commitRoot(root: FiberRootNode) {
+	const finishedWork = root.finishedWork;
+	if (finishedWork === null) return;
+	if (__DEV__) {
+		console.warn('commit root starts');
+	}
+	root.finishedWork = null;
+
+	// see if three commit sub stage need to be processed
+
+	const subtreeHasEffect =
+		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
+	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
+	if (subtreeHasEffect || rootHasEffect) {
+		// 1. beforeMutation
+		// 2. Mutation
+		commitMutationEffects(finishedWork);
+		root.current = finishedWork; // change wip fiber tree to current after mutation
+		// 3. layout (After Mutation useLayoutEffect)
+	} else {
+		root.current = finishedWork;
+	}
 }
 
 function workLoop() {
@@ -62,19 +94,16 @@ function performUnitOfWork(fiber: FiberNode) {
 }
 
 function completeUnitOfWork(fiber: FiberNode) {
-	let node = fiber;
-	while (true) {
+	let node: FiberNode | null = fiber;
+	do {
 		completeWork(node);
-		if (node.sibling !== null) {
-			workInProgress = node.sibling;
+		const sibling = node.sibling;
+
+		if (sibling !== null) {
+			workInProgress = sibling;
 			return;
 		}
-		if (node.return !== null) {
-			node = node.return;
-			workInProgress = node;
-			return;
-		}
-		workInProgress = null;
-		return;
-	}
+		node = node.return;
+		workInProgress = node;
+	} while (node !== null);
 }

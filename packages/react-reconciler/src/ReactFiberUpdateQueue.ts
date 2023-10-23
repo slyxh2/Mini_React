@@ -11,6 +11,9 @@ export interface UpdateQueue<State> {
 }
 
 export const createUpdate = <State>(action: Action<State>): Update<State> => {
+	if (__DEV__) {
+		console.warn('createUpdate start');
+	}
 	return {
 		action
 	};

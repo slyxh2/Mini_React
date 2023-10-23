@@ -53,7 +53,7 @@ const reconcileChildren = (wip: FiberNode, children?: ReactElementType) => {
 	const current = wip.alternate;
 	if (current !== null) {
 		// update or HostFiberNode in the mount stage
-		wip.child = reconcileChildFibers(wip, current?.child, children);
+		wip.child = reconcileChildFibers(wip, current.child, children);
 	} else {
 		// mount
 		wip.child = mountChildFibers(wip, null, children);
