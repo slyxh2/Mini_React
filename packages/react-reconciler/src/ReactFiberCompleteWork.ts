@@ -5,7 +5,12 @@ import {
 	createTextInstance
 } from 'hostConfig';
 import { FiberNode } from './ReactFiber';
-import { HostComponent, HostRoot, HostText } from './ReactWorkTags';
+import {
+	FunctionComponent,
+	HostComponent,
+	HostRoot,
+	HostText
+} from './ReactWorkTags';
 import { NoFlags } from './ReactFiberFlags';
 
 export const completeWork = (wip: FiberNode) => {
@@ -35,6 +40,9 @@ export const completeWork = (wip: FiberNode) => {
 			bubbleProperties(wip);
 			break;
 		case HostRoot:
+			bubbleProperties(wip);
+			break;
+		case FunctionComponent:
 			bubbleProperties(wip);
 			break;
 		default:

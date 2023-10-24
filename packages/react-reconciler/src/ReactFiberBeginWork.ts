@@ -1,8 +1,14 @@
 import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './ReactFiber';
 import { UpdateQueue, processUpdateQueue } from './ReactFiberUpdateQueue';
-import { HostComponent, HostRoot, HostText } from './ReactWorkTags';
+import {
+	FunctionComponent,
+	HostComponent,
+	HostRoot,
+	HostText
+} from './ReactWorkTags';
 import { mountChildFibers, reconcileChildFibers } from './ReactChildFibers';
+import { renderWithHooks } from './ReactFiberHooks';
 /**
  * Mount -> the first time run React
  * In mount stage, HostFiberNode will 1. calculate the new state 2. create the child fiberNode
@@ -19,6 +25,8 @@ export const beginWork = (wip: FiberNode): FiberNode | null => {
 			return updateHostElement(wip);
 		case HostText:
 			return null;
+		case FunctionComponent:
+			return updateFunctionComponent(wip);
 		default:
 			if (__DEV__) {
 				console.warn('This Fiber type is not implement');
@@ -45,6 +53,12 @@ const updateHostRoot = (wip: FiberNode): FiberNode | null => {
 const updateHostElement = (wip: FiberNode): FiberNode | null => {
 	const nextProps = wip.pendingProps;
 	const nextChildren = nextProps.children;
+	reconcileChildren(wip, nextChildren);
+	return wip.child;
+};
+
+const updateFunctionComponent = (wip: FiberNode): FiberNode | null => {
+	const nextChildren = renderWithHooks(wip);
 	reconcileChildren(wip, nextChildren);
 	return wip.child;
 };
