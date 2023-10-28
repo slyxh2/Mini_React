@@ -29,8 +29,12 @@ const mountState: UseStateType = <T>(
 	const updateQueue = createUpdateQueue<T>();
 	hook.updateQueue = updateQueue;
 	hook.memorizedState = memorizedState;
-	//@ts-ignore
-	const dispatch = dispatchSetState.bind(null, currentRenderingFiber, updateQueue);
+
+	const dispatch = (dispatchSetState<T>).bind(
+		null,
+		currentRenderingFiber!,
+		updateQueue
+	);
 	updateQueue.dispatch = dispatch;
 	return [memorizedState, dispatch];
 };

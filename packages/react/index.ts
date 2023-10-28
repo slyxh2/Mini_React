@@ -3,7 +3,7 @@ import {
 	resolveDispatcher,
 	currentDispathcher
 } from './src/ReactCurrentDispatcher';
-import { jsxDEV } from './src/jsx';
+import { jsx, isVaildElement as isVaildElementFn } from './src/jsx';
 
 export const useState: Dispatcher['useState'] = (initialState: any) => {
 	const dispathcer = resolveDispatcher();
@@ -13,8 +13,6 @@ export const useState: Dispatcher['useState'] = (initialState: any) => {
 export const __SECRET__INTERNAL__ = {
 	currentDispathcher
 };
-
-export default {
-	version: '0.0.0',
-	createElement: jsxDEV
-};
+export const version = '0.0.0';
+export const createElement = jsx;
+export const isValidElement = isVaildElementFn;

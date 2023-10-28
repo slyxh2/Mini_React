@@ -29,13 +29,15 @@ export const jsx = (
 	config: any,
 	...maybeChildren: any
 ): ReactElementType => {
-	const props: Props = {};
 	let key: Key = null;
+	const props: Props = {};
 	let ref: Ref = null;
-	for (const [prop, val] of Object.entries(config)) {
+
+	for (const prop in config) {
+		const val = config[prop];
 		if (prop === 'key') {
 			if (val !== undefined) {
-				key = val + '';
+				key = '' + val;
 			}
 			continue;
 		}
@@ -45,12 +47,13 @@ export const jsx = (
 			}
 			continue;
 		}
-		if (Object.hasOwnProperty.call(config, prop)) {
+		if ({}.hasOwnProperty.call(config, prop)) {
 			props[prop] = val;
 		}
 	}
-	if (maybeChildren) {
-		if (maybeChildren.length === 1) {
+	const maybeChildrenLength = maybeChildren.length;
+	if (maybeChildrenLength) {
+		if (maybeChildrenLength === 1) {
 			props.children = maybeChildren[0];
 		} else {
 			props.children = maybeChildren;
@@ -60,13 +63,15 @@ export const jsx = (
 };
 
 export const jsxDEV = (type: ElementType, config: any): ReactElementType => {
-	const props: Props = {};
 	let key: Key = null;
+	const props: Props = {};
 	let ref: Ref = null;
-	for (const [prop, val] of Object.entries(config)) {
+
+	for (const prop in config) {
+		const val = config[prop];
 		if (prop === 'key') {
 			if (val !== undefined) {
-				key = val + '';
+				key = '' + val;
 			}
 			continue;
 		}
@@ -76,9 +81,18 @@ export const jsxDEV = (type: ElementType, config: any): ReactElementType => {
 			}
 			continue;
 		}
-		if (Object.hasOwnProperty.call(config, prop)) {
+		if ({}.hasOwnProperty.call(config, prop)) {
 			props[prop] = val;
 		}
 	}
+
 	return ReactElement(type, key, ref, props);
 };
+
+export const isVaildElement = (object: any) => {
+	return (
+		typeof object === 'object' &&
+		object !== null &&
+		object.$$typeof === REACT_ELEMENT_TYPE
+	)
+}

@@ -15,7 +15,7 @@ export function createRoot(container: Container) {
 			if (__DEV__) {
 				console.warn('render start');
 			}
-			updateContainer(element, root);
+			return updateContainer(element, root);
 		}
 	};
 }
