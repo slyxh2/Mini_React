@@ -1,10 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 const App = () => {
-  let a = 2;
+  const [num, setNum] = useState(20);
+  window['setNum'] = setNum;
   return (
     <div>
-      <Child />
+      {/* <Child /> */}
+      {num}
     </div>
   )
 }
