@@ -20,6 +20,7 @@ export class FiberNode {
 	memorizedProps: Props | null;
 	memorizedState: any;
 	updateQueue: UpdateQueue<any> | null;
+	deletions: FiberNode[] | null;
 
 	alternate: FiberNode | null;
 	flags: Flags;
@@ -40,6 +41,7 @@ export class FiberNode {
 		this.memorizedProps = null;
 		this.memorizedState = null;
 		this.updateQueue = null;
+		this.deletions = null;
 
 		this.alternate = null;
 		this.flags = NoFlags;
@@ -75,6 +77,7 @@ export function createWorkInProgress(
 		wip.pendingProps = pendingProps;
 		wip.flags = NoFlags;
 		wip.subtreeFlags = NoFlags;
+		wip.deletions = null;
 	}
 	wip.type = current.type;
 	wip.updateQueue = current.updateQueue;

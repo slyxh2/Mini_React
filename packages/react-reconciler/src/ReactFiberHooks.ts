@@ -11,13 +11,15 @@ import {
 	UpdateQueue,
 	createUpdate,
 	createUpdateQueue,
-	enqueUpdate
+	enqueUpdate,
+	processUpdateQueue
 } from './ReactFiberUpdateQueue';
 import { scheduleUpdateOnFiber } from './ReactFiberWorkLoop';
 
 const { currentDispathcher } = internals;
 let currentRenderingFiber: FiberNode | null = null;
 let workInProgressHook: Hook | null = null;
+let currentHook: Hook | null = null;
 
 //useState in mount stage
 const mountState: UseStateType = <T>(
@@ -39,8 +41,24 @@ const mountState: UseStateType = <T>(
 	return [memorizedState, dispatch];
 };
 
+// useState in update stage
+const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
+	const hook = updateWorkInProgressHook();
+	const queue = hook.updateQueue as UpdateQueue<T>;
+	const pending = queue.shared.pending;
+	if (pending !== null) {
+		const { memorizedState } = processUpdateQueue(hook.memorizedState, pending);
+		hook.memorizedState = memorizedState;
+	}
+	return [hook.memorizedState, queue.dispatch as Dispatch<T>];
+};
+
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState
+};
+
+const HooksDispatcherOnUpdate: Dispatcher = {
+	useState: updateState
 };
 
 export function renderWithHooks(wip: FiberNode) {
@@ -50,6 +68,7 @@ export function renderWithHooks(wip: FiberNode) {
 	const current = wip.alternate;
 	if (current !== null) {
 		//update
+		currentDispathcher.current = HooksDispatcherOnUpdate;
 	} else {
 		// mount
 		currentDispathcher.current = HooksDispatcherOnMount;
@@ -59,6 +78,8 @@ export function renderWithHooks(wip: FiberNode) {
 	const props: Props = wip.pendingProps;
 	const children = Component(props);
 	currentRenderingFiber = null; // current wip render finish
+	workInProgressHook = null;
+	currentHook = null;
 	return children;
 }
 
@@ -78,6 +99,43 @@ function mountWorkInProgressHook(): Hook {
 	} else {
 		workInProgressHook.next = hook;
 		workInProgressHook = hook;
+	}
+	return workInProgressHook;
+}
+
+function updateWorkInProgressHook(): Hook {
+	let nextCurrentHook: Hook | null = null;
+	if (currentHook === null) {
+		const current = currentRenderingFiber?.alternate;
+		console.log(current);
+		if (current !== null) {
+			nextCurrentHook = current?.memorizedState;
+		} else {
+			nextCurrentHook = null;
+		}
+	} else {
+		nextCurrentHook = currentHook.next;
+	}
+	if (nextCurrentHook === null) {
+		// the number of hooks is more than last time
+		throw new Error('The number of hooks is more than last time');
+	}
+	currentHook = nextCurrentHook;
+	const newHook: Hook = {
+		memorizedState: currentHook.memorizedState,
+		updateQueue: currentHook.updateQueue,
+		next: null
+	}
+	if (workInProgressHook === null) {
+		if (currentRenderingFiber === null) {
+			throw new Error('Hook must run in function component.');
+		} else {
+			workInProgressHook = newHook;
+			currentRenderingFiber.memorizedState = newHook;
+		}
+	} else {
+		workInProgressHook.next = newHook;
+		workInProgressHook = newHook;
 	}
 	return workInProgressHook;
 }

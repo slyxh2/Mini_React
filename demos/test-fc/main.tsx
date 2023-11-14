@@ -2,13 +2,10 @@ import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 const App = () => {
   const [num, setNum] = useState(20);
-  window['setNum'] = setNum;
-  return (
-    <div>
-      {/* <Child /> */}
-      {num}
-    </div>
-  )
+  console.log('App run');
+  // @ts-ignore
+  window.setNum = setNum;
+  return num === 3 ? <Child /> : <div>{num}</div>;
 }
 
 const Child = () => {

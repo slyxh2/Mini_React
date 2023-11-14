@@ -1,3 +1,6 @@
+/**
+ * In the mount stage, the completeWork create each host state node(DOM) and mark update bubble to the root
+ */
 import {
 	Container,
 	appendInitialChild,
@@ -11,7 +14,11 @@ import {
 	HostRoot,
 	HostText
 } from './ReactWorkTags';
-import { NoFlags } from './ReactFiberFlags';
+import { NoFlags, Update } from './ReactFiberFlags';
+
+function markUpdate(fiber: FiberNode) {
+	fiber.flags |= Update;
+}
 
 export const completeWork = (wip: FiberNode) => {
 	const newProps = wip.pendingProps;
@@ -31,7 +38,12 @@ export const completeWork = (wip: FiberNode) => {
 			break;
 		case HostText:
 			if (current !== null && wip.stateNode) {
-				//TODO: update
+				//update
+				const oldText = current.memorizedProps.content;
+				const newText = newProps.content;
+				if (oldText !== newText) {
+					markUpdate(wip);
+				}
 			} else {
 				// mount
 				const instance = createTextInstance(newProps.content);

@@ -45,11 +45,12 @@ function renderRoot(root: FiberRootNode) {
 			workInProgress = null;
 		}
 	}
+
+	const finishedWork = root.current.alternate;
+	root.finishedWork = finishedWork;
 	if (__DEV__) {
 		console.log(root);
 	}
-	const finishedWork = root.current.alternate;
-	root.finishedWork = finishedWork;
 	commitRoot(root);
 }
 
