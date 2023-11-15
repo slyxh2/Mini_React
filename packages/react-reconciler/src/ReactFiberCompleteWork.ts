@@ -15,6 +15,7 @@ import {
 	HostText
 } from './ReactWorkTags';
 import { NoFlags, Update } from './ReactFiberFlags';
+import { updateFiberProps } from 'react-dom/src/ReactSyntheticEvent';
 
 function markUpdate(fiber: FiberNode) {
 	fiber.flags |= Update;
@@ -28,9 +29,10 @@ export const completeWork = (wip: FiberNode) => {
 		case HostComponent:
 			if (current !== null && wip.stateNode) {
 				//TODO: update
+				updateFiberProps(wip.stateNode, newProps);
 			} else {
 				// mount
-				const instance = createInstance(wip.type);
+				const instance = createInstance(wip.type, newProps);
 				appendAllChildren(instance, wip);
 				wip.stateNode = instance;
 			}

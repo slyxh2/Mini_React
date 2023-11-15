@@ -12,6 +12,12 @@ const Child = () => {
   return <h1>patrick288</h1>
 }
 
+const EventCom = () => {
+  const [num, setNum] = useState(20);
+  return <div onClickCapture={() => setNum(num + 1)}>{num}</div>
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <App />
+  // <App />
+  <EventCom />
 )
