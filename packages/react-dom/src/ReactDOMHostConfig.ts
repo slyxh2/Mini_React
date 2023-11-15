@@ -3,7 +3,6 @@ import { HostText } from 'react-reconciler/src/ReactWorkTags';
 import { Props } from 'shared/ReactTypes';
 import { updateFiberProps, DOMElement } from './ReactSyntheticEvent';
 
-
 export type Container = Element;
 export type Instance = Element;
 export type TextInstance = Text;
