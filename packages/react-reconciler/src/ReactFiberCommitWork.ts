@@ -1,7 +1,23 @@
-import { Container, appendChildToContainer, commitUpdate, removeChild } from 'hostConfig';
+import {
+	Container,
+	appendChildToContainer,
+	commitUpdate,
+	removeChild
+} from 'hostConfig';
 import { FiberNode, FiberRootNode } from './ReactFiber';
-import { ChildDeletion, MutationMask, NoFlags, Placement, Update } from './ReactFiberFlags';
-import { FunctionComponent, HostComponent, HostRoot, HostText } from './ReactWorkTags';
+import {
+	ChildDeletion,
+	MutationMask,
+	NoFlags,
+	Placement,
+	Update
+} from './ReactFiberFlags';
+import {
+	FunctionComponent,
+	HostComponent,
+	HostRoot,
+	HostText
+} from './ReactWorkTags';
 
 let nextEffect: FiberNode | null = null;
 
@@ -9,7 +25,10 @@ export function commitMutationEffects(finishedWork: FiberNode) {
 	nextEffect = finishedWork;
 	while (nextEffect !== null) {
 		const child: FiberNode | null = nextEffect.child;
-		if ((nextEffect.subtreeFlags & MutationMask) !== NoFlags && child !== null) {
+		if (
+			(nextEffect.subtreeFlags & MutationMask) !== NoFlags &&
+			child !== null
+		) {
 			nextEffect = child;
 		} else {
 			up: while (nextEffect !== null) {
@@ -40,9 +59,9 @@ function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
 	if ((flags & ChildDeletion) !== NoFlags) {
 		const deletions = finishedWork.deletions;
 		if (deletions !== null) {
-			deletions.forEach(child => {
+			deletions.forEach((child) => {
 				commitDeletion(child);
-			})
+			});
 		}
 		finishedWork.flags &= ~ChildDeletion;
 		flags = finishedWork.flags;
@@ -50,7 +69,6 @@ function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
 }
 
 function commitDeletion(childToDelete: FiberNode) {
-
 	let rootHostNode: FiberNode | null = null;
 
 	commitNestedComponent(childToDelete, (fiber: FiberNode) => {
@@ -71,7 +89,7 @@ function commitDeletion(childToDelete: FiberNode) {
 			default:
 				return;
 		}
-	})
+	});
 
 	if (rootHostNode !== null) {
 		const hostParent = getHostParents(childToDelete);

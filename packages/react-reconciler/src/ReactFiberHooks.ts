@@ -125,7 +125,7 @@ function updateWorkInProgressHook(): Hook {
 		memorizedState: currentHook.memorizedState,
 		updateQueue: currentHook.updateQueue,
 		next: null
-	}
+	};
 	if (workInProgressHook === null) {
 		if (currentRenderingFiber === null) {
 			throw new Error('Hook must run in function component.');

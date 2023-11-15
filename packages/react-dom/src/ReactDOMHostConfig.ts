@@ -1,11 +1,11 @@
-import { FiberNode } from "react-reconciler/src/ReactFiber";
-import { HostText } from "react-reconciler/src/ReactWorkTags";
+import { FiberNode } from 'react-reconciler/src/ReactFiber';
+import { HostText } from 'react-reconciler/src/ReactWorkTags';
 
 export type Container = Element;
 export type Instance = Element;
 export type TextInstance = Text;
 
-export function createInstance(type: string, props: any): Instance {
+export function createInstance(type: string): Instance {
 	const element: Instance = document.createElement(type);
 	return element;
 }
@@ -28,6 +28,7 @@ export function commitUpdate(fiber: FiberNode) {
 		case HostText:
 			const text = fiber.memorizedProps.content;
 			commitTextUpdate(fiber.stateNode, text);
+			break;
 		default:
 			break;
 	}
@@ -40,6 +41,9 @@ export function commitTextUpdate(textInstance: TextInstance, content: string) {
 	textInstance.textContent = content;
 }
 
-export function removeChild(child: Instance | TextInstance, container: Container) {
+export function removeChild(
+	child: Instance | TextInstance,
+	container: Container
+) {
 	container.removeChild(child);
 }

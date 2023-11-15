@@ -30,7 +30,7 @@ export const completeWork = (wip: FiberNode) => {
 				//TODO: update
 			} else {
 				// mount
-				const instance = createInstance(wip.type, newProps);
+				const instance = createInstance(wip.type);
 				appendAllChildren(instance, wip);
 				wip.stateNode = instance;
 			}

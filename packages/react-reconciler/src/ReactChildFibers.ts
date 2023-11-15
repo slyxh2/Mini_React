@@ -3,7 +3,11 @@
  * if in the mount stage, many FiberNode flag was placement, we can not track every placement in the mount i.e. shouldTrackEffects -> false
  */
 import { Props, ReactElementType } from 'shared/ReactTypes';
-import { FiberNode, createFiberFromElement, createWorkInProgress } from './ReactFiber';
+import {
+	FiberNode,
+	createFiberFromElement,
+	createWorkInProgress
+} from './ReactFiber';
 import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols';
 import { HostText } from './ReactWorkTags';
 import { ChildDeletion, Placement } from './ReactFiberFlags';
@@ -20,7 +24,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 	}
 
 	/**
-	 * returnFiber -> wip 
+	 * returnFiber -> wip
 	 * currentFiber -> current fiber child fiber node
 	 * element -> wip child element
 	 * compare currentFiber and element to see if can reuse the current fiber
@@ -38,7 +42,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 				if (element.$$typeof === REACT_ELEMENT_TYPE) {
 					if (currentFiber.type === element.type) {
 						// same type
-						let cloneFiber = useFiber(currentFiber, element.props);
+						const cloneFiber = useFiber(currentFiber, element.props);
 						cloneFiber.return = returnFiber;
 						return cloneFiber;
 					} else {
@@ -51,7 +55,6 @@ function childReconciler(shouldTrackEffects: boolean) {
 						console.warn('Do not support element type.');
 					}
 				}
-
 			} else {
 				// delete old fiber node
 				deleteChild(returnFiber, currentFiber);
@@ -70,7 +73,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 			// update
 			if (currentFiber.type === HostText) {
 				// same type(text)
-				let cloneFiber = useFiber(currentFiber, { content });
+				const cloneFiber = useFiber(currentFiber, { content });
 				cloneFiber.return = returnFiber;
 				return cloneFiber;
 			}
