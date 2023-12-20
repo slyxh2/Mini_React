@@ -47,16 +47,14 @@ export function commitMutationEffects(finishedWork: FiberNode) {
 }
 
 function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
-	let flags = finishedWork.flags;
+	const flags = finishedWork.flags;
 	if ((flags & Placement) !== NoFlags) {
 		commitPlacement(finishedWork);
 		finishedWork.flags &= ~Placement;
-		flags = finishedWork.flags;
 	}
 	if ((flags & Update) !== NoFlags) {
 		commitUpdate(finishedWork);
 		finishedWork.flags &= ~Update;
-		flags = finishedWork.flags;
 	}
 	if ((flags & ChildDeletion) !== NoFlags) {
 		const deletions = finishedWork.deletions;
@@ -66,40 +64,59 @@ function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
 			});
 		}
 		finishedWork.flags &= ~ChildDeletion;
-		flags = finishedWork.flags;
+	}
+}
+
+function recordHostChildrenToDelete(
+	childrenToDelete: FiberNode[],
+	unmountFiber: FiberNode
+) {
+	// 1. find the first
+	const lastOne = childrenToDelete[childrenToDelete.length - 1];
+
+	if (!lastOne) {
+		childrenToDelete.push(unmountFiber);
+	} else {
+		let node = lastOne.sibling;
+		while (node !== null) {
+			if (unmountFiber === node) {
+				childrenToDelete.push(unmountFiber);
+			}
+			node = node.sibling;
+		}
 	}
 }
 
 function commitDeletion(childToDelete: FiberNode) {
-	let rootHostNode: FiberNode | null = null;
+	const rootChildrenToDelete: FiberNode[] = [];
 
-	commitNestedComponent(childToDelete, (fiber: FiberNode) => {
-		switch (fiber.tag) {
+	commitNestedComponent(childToDelete, (unmountFiber) => {
+		switch (unmountFiber.tag) {
 			case HostComponent:
-				if (rootHostNode === null) {
-					rootHostNode = fiber;
-				}
+				recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber);
+				// TODO 解绑ref
 				return;
 			case HostText:
-				if (rootHostNode === null) {
-					rootHostNode = fiber;
-				}
+				recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber);
 				return;
 			case FunctionComponent:
-				// TODO: useEffect unmount
+				// TODO useEffect unmount 、解绑ref
 				return;
 			default:
-				return;
+				if (__DEV__) {
+					console.warn('unsupport', unmountFiber);
+				}
 		}
 	});
 
-	if (rootHostNode !== null) {
+	if (rootChildrenToDelete.length) {
 		const hostParent = getHostParents(childToDelete);
 		if (hostParent !== null) {
-			removeChild((<FiberNode>rootHostNode).stateNode, hostParent);
+			rootChildrenToDelete.forEach((deleteFiber) => {
+				removeChild(deleteFiber.stateNode, hostParent);
+			});
 		}
 	}
-
 	childToDelete.return = null;
 	childToDelete.child = null;
 }
@@ -110,6 +127,7 @@ function commitNestedComponent(
 	let node = root;
 	while (true) {
 		onCommitUnmount(node);
+
 		if (node.child !== null) {
 			node.child.return = node;
 			node = node.child;
@@ -124,7 +142,7 @@ function commitNestedComponent(
 			}
 			node = node.return;
 		}
-		node.sibling.return = node;
+		node.sibling.return = node.return;
 		node = node.sibling;
 	}
 }
@@ -135,6 +153,7 @@ function commitPlacement(finishedWork: FiberNode) {
 
 	const hostParent = getHostParents(finishedWork);
 	const sibling = getHostSibling(finishedWork);
+
 	if (hostParent !== null) {
 		insertOrAppendPlacementNodeIntoContainer(finishedWork, hostParent, sibling);
 	} else {
@@ -180,6 +199,7 @@ function getHostSibling(fiber: FiberNode) {
 
 function getHostParents(fiber: FiberNode): Container | null {
 	let parent = fiber.return;
+
 	while (parent) {
 		const parentTag = parent.tag;
 		// HostComponent HostRoot
@@ -214,7 +234,8 @@ function insertOrAppendPlacementNodeIntoContainer(
 	const child = finishedWork.child;
 	if (child !== null) {
 		insertOrAppendPlacementNodeIntoContainer(child, hostParent);
-		let sibling = finishedWork.sibling;
+		let sibling = child.sibling;
+
 		while (sibling !== null) {
 			insertOrAppendPlacementNodeIntoContainer(sibling, hostParent);
 			sibling = sibling.sibling;

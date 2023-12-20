@@ -2,6 +2,7 @@ import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './ReactFiber';
 import { UpdateQueue, processUpdateQueue } from './ReactFiberUpdateQueue';
 import {
+	Fragment,
 	FunctionComponent,
 	HostComponent,
 	HostRoot,
@@ -27,6 +28,8 @@ export const beginWork = (wip: FiberNode): FiberNode | null => {
 			return null;
 		case FunctionComponent:
 			return updateFunctionComponent(wip);
+		case Fragment:
+			return updateFragment(wip);
 		default:
 			if (__DEV__) {
 				console.warn('This Fiber type is not implement');
@@ -59,6 +62,13 @@ const updateHostElement = (wip: FiberNode): FiberNode | null => {
 
 const updateFunctionComponent = (wip: FiberNode): FiberNode | null => {
 	const nextChildren = renderWithHooks(wip);
+	reconcileChildren(wip, nextChildren);
+	return wip.child;
+};
+
+const updateFragment = (wip: FiberNode): FiberNode | null => {
+	const nextChildren = wip.pendingProps;
+	// const nextChildren = nextProps.children;
 	reconcileChildren(wip, nextChildren);
 	return wip.child;
 };

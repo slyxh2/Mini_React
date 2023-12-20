@@ -49,7 +49,7 @@ function renderRoot(root: FiberRootNode) {
 	const finishedWork = root.current.alternate;
 	root.finishedWork = finishedWork;
 	if (__DEV__) {
-		console.log(root);
+		console.log(finishedWork);
 	}
 	commitRoot(root);
 }
@@ -58,7 +58,7 @@ function commitRoot(root: FiberRootNode) {
 	const finishedWork = root.finishedWork;
 	if (finishedWork === null) return;
 	if (__DEV__) {
-		console.warn('commit root starts');
+		console.warn('commit root starts', finishedWork);
 	}
 	root.finishedWork = null;
 

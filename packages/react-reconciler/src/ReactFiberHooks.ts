@@ -107,7 +107,6 @@ function updateWorkInProgressHook(): Hook {
 	let nextCurrentHook: Hook | null = null;
 	if (currentHook === null) {
 		const current = currentRenderingFiber?.alternate;
-		console.log(current);
 		if (current !== null) {
 			nextCurrentHook = current?.memorizedState;
 		} else {

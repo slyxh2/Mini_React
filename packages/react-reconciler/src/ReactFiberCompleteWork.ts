@@ -9,6 +9,7 @@ import {
 } from 'hostConfig';
 import { FiberNode } from './ReactFiber';
 import {
+	Fragment,
 	FunctionComponent,
 	HostComponent,
 	HostRoot,
@@ -16,7 +17,6 @@ import {
 } from './ReactWorkTags';
 import { NoFlags, Update } from './ReactFiberFlags';
 import { updateFiberProps } from 'react-dom/src/ReactSyntheticEvent';
-
 function markUpdate(fiber: FiberNode) {
 	fiber.flags |= Update;
 }
@@ -37,7 +37,7 @@ export const completeWork = (wip: FiberNode) => {
 				wip.stateNode = instance;
 			}
 			bubbleProperties(wip);
-			break;
+			return null;
 		case HostText:
 			if (current !== null && wip.stateNode) {
 				//update
@@ -52,13 +52,12 @@ export const completeWork = (wip: FiberNode) => {
 				wip.stateNode = instance;
 			}
 			bubbleProperties(wip);
-			break;
+			return null;
 		case HostRoot:
-			bubbleProperties(wip);
-			break;
 		case FunctionComponent:
+		case Fragment:
 			bubbleProperties(wip);
-			break;
+			return null;
 		default:
 			break;
 	}
@@ -91,9 +90,11 @@ function appendAllChildren(parent: Container, wip: FiberNode) {
 function bubbleProperties(wip: FiberNode) {
 	let subtreeFlags = NoFlags;
 	let child = wip.child;
+
 	while (child !== null) {
-		subtreeFlags |= child.flags;
 		subtreeFlags |= child.subtreeFlags;
+		subtreeFlags |= child.flags;
+
 		child.return = wip;
 		child = child.sibling;
 	}

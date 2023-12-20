@@ -31,5 +31,8 @@ export default defineConfig({
         replacement: path.resolve(ReactDOMPkgPath, "./src/ReactDOMHostConfig.ts")
       }
     ]
+  },
+  server: {
+    port: 3007
   }
 })

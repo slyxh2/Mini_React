@@ -2,14 +2,15 @@
  * To handle the child Fiber
  * if in the mount stage, many FiberNode flag was placement, we can not track every placement in the mount i.e. shouldTrackEffects -> false
  */
-import { Props, ReactElementType } from 'shared/ReactTypes';
+import { Key, Props, ReactElementType } from 'shared/ReactTypes';
 import {
 	FiberNode,
 	createFiberFromElement,
+	createFiberFromFragment,
 	createWorkInProgress
 } from './ReactFiber';
-import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols';
-import { HostText } from './ReactWorkTags';
+import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
+import { Fragment, HostText } from './ReactWorkTags';
 import { ChildDeletion, Placement } from './ReactFiberFlags';
 
 type ExistingChildren = Map<string | null, FiberNode>;
@@ -56,7 +57,11 @@ function childReconciler(shouldTrackEffects: boolean) {
 				if (element.$$typeof === REACT_ELEMENT_TYPE) {
 					if (currentFiber.type === element.type) {
 						// same type
-						const cloneFiber = useFiber(currentFiber, element.props);
+						let props = element.props;
+						if (element.type === REACT_FRAGMENT_TYPE) {
+							props = element.props.children;
+						}
+						const cloneFiber = useFiber(currentFiber, props);
 						cloneFiber.return = returnFiber;
 						deleteRemainingChildren(returnFiber, currentFiber.sibling);
 						return cloneFiber;
@@ -76,7 +81,12 @@ function childReconciler(shouldTrackEffects: boolean) {
 				currentFiber = currentFiber.sibling;
 			}
 		}
-		const fiber = createFiberFromElement(element);
+		let fiber;
+		if (element.type === REACT_FRAGMENT_TYPE) {
+			fiber = createFiberFromFragment(element.props.children, key);
+		} else {
+			fiber = createFiberFromElement(element);
+		}
 		fiber.return = returnFiber;
 		return fiber;
 	}
@@ -87,7 +97,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 	): FiberNode {
 		while (currentFiber !== null) {
 			// update
-			if (currentFiber.type === HostText) {
+			if (currentFiber.tag === HostText) {
 				// same type(text)
 				const cloneFiber = useFiber(currentFiber, { content });
 				cloneFiber.return = returnFiber;
@@ -109,12 +119,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 		}
 		return fiber;
 	}
-	function useFiber(currentFiber: FiberNode, pendingProps: Props) {
-		const clone = createWorkInProgress(currentFiber, pendingProps);
-		clone.index = 0;
-		clone.sibling = null;
-		return clone;
-	}
+
 	function reconcileChildrenArray(
 		returnFiber: FiberNode,
 		currentFirstChild: FiberNode | null,
@@ -177,7 +182,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 		element: any
 	): FiberNode | null {
 		const keyToUse = element.key !== null ? element.key : index;
-		const before = existingChildren.get(keyToUse);
+		const before = existingChildren.get(keyToUse) || null;
 
 		// HostText
 		if (typeof element === 'string' || typeof element === 'number') {
@@ -194,6 +199,15 @@ function childReconciler(shouldTrackEffects: boolean) {
 		if (typeof element === 'object' && element !== null) {
 			switch (element.$$typeof) {
 				case REACT_ELEMENT_TYPE:
+					if (element.type === REACT_FRAGMENT_TYPE) {
+						return updateFragment(
+							returnFiber,
+							before,
+							element,
+							keyToUse,
+							existingChildren
+						);
+					}
 					if (before) {
 						if (before.type === element.type) {
 							existingChildren.delete(keyToUse);
@@ -201,26 +215,41 @@ function childReconciler(shouldTrackEffects: boolean) {
 						}
 					}
 					return createFiberFromElement(element);
-				default:
-					break;
 			}
 		}
 
 		// TODO Array
 		if (Array.isArray(element)) {
-			if (__DEV__) {
-				console.warn('No Implement for Array');
-			}
+			return updateFragment(
+				returnFiber,
+				before,
+				element,
+				keyToUse,
+				existingChildren
+			);
 		}
 		return null;
 	}
 	return function reconcileChildFibers(
 		returnFiber: FiberNode,
 		currentFiber: FiberNode | null,
-		newChild?: ReactElementType
+		newChild?: any
 	): FiberNode | null {
-		// Single Child Node
+		const isUnkeyedTopLevelFragment =
+			typeof newChild === 'object' &&
+			newChild !== null &&
+			newChild.type === REACT_FRAGMENT_TYPE &&
+			newChild.key === null;
+		if (isUnkeyedTopLevelFragment) {
+			newChild = newChild.props.children;
+		}
+		// check fiber type
 		if (typeof newChild === 'object' && newChild !== null) {
+			// Multiple Child Nodes
+			if (Array.isArray(newChild)) {
+				return reconcileChildrenArray(returnFiber, currentFiber, newChild);
+			}
+			// Single Child Node
 			switch (newChild.$$typeof) {
 				case REACT_ELEMENT_TYPE:
 					return placeSingleChild(
@@ -231,12 +260,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 						console.warn('This is ReactElement type is not implement');
 					}
 			}
-			if (Array.isArray(newChild)) {
-				return reconcileChildrenArray(returnFiber, currentFiber, newChild);
-			}
 		}
-
-		// TODO: multiple children nodes
 
 		// text node
 		if (typeof newChild === 'string' || typeof newChild === 'number') {
@@ -246,7 +270,7 @@ function childReconciler(shouldTrackEffects: boolean) {
 		}
 
 		if (currentFiber !== null) {
-			deleteChild(returnFiber, currentFiber);
+			deleteRemainingChildren(returnFiber, currentFiber);
 		}
 		if (__DEV__) {
 			console.warn('This is ReactElement type is not implement');
@@ -255,5 +279,29 @@ function childReconciler(shouldTrackEffects: boolean) {
 	};
 }
 
+function useFiber(currentFiber: FiberNode, pendingProps: Props) {
+	const clone = createWorkInProgress(currentFiber, pendingProps);
+	clone.index = 0;
+	clone.sibling = null;
+	return clone;
+}
+
+function updateFragment(
+	returnFiber: FiberNode,
+	current: FiberNode | null,
+	elements: any[],
+	key: Key,
+	existingChildren: ExistingChildren
+): FiberNode {
+	let fiber;
+	if (!current || current.tag !== Fragment) {
+		fiber = createFiberFromFragment(elements, key);
+	} else {
+		existingChildren.delete(key);
+		fiber = useFiber(current, elements);
+	}
+	fiber.return = returnFiber;
+	return fiber;
+}
 export const reconcileChildFibers = childReconciler(true);
 export const mountChildFibers = childReconciler(false);

@@ -38,9 +38,6 @@ export function commitUpdate(fiber: FiberNode) {
 }
 
 export function commitTextUpdate(textInstance: TextInstance, content: string) {
-	if (__DEV__) {
-		console.log(textInstance, content);
-	}
 	textInstance.textContent = content;
 }
 
