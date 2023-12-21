@@ -48,6 +48,7 @@ const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
 	const hook = updateWorkInProgressHook();
 	const queue = hook.updateQueue as UpdateQueue<T>;
 	const pending = queue.shared.pending;
+	queue.shared.pending = null;
 	if (pending !== null) {
 		const { memorizedState } = processUpdateQueue(
 			hook.memorizedState,
