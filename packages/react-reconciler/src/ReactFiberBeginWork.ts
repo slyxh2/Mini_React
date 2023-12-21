@@ -10,6 +10,7 @@ import {
 } from './ReactWorkTags';
 import { mountChildFibers, reconcileChildFibers } from './ReactChildFibers';
 import { renderWithHooks } from './ReactFiberHooks';
+import { Lane } from './ReactFiberLane';
 /**
  * Mount -> the first time run React
  * In mount stage, HostFiberNode will 1. calculate the new state 2. create the child fiberNode
@@ -18,16 +19,19 @@ import { renderWithHooks } from './ReactFiberHooks';
 
 // Compared with child ReactElement and child FiberNode return the child FiberNode
 // wip -> working in progress
-export const beginWork = (wip: FiberNode): FiberNode | null => {
+export const beginWork = (
+	wip: FiberNode,
+	renderLane: Lane
+): FiberNode | null => {
 	switch (wip.tag) {
 		case HostRoot:
-			return updateHostRoot(wip);
+			return updateHostRoot(wip, renderLane);
 		case HostComponent:
 			return updateHostElement(wip);
 		case HostText:
 			return null;
 		case FunctionComponent:
-			return updateFunctionComponent(wip);
+			return updateFunctionComponent(wip, renderLane);
 		case Fragment:
 			return updateFragment(wip);
 		default:
@@ -39,13 +43,14 @@ export const beginWork = (wip: FiberNode): FiberNode | null => {
 };
 
 // in the mount stage, the update type of HostRootFiber is ReactElement. e.g. <App />
-const updateHostRoot = (wip: FiberNode): FiberNode | null => {
+const updateHostRoot = (wip: FiberNode, renderLane: Lane): FiberNode | null => {
 	const baseState = wip.memorizedState;
 	const updateQueue = wip.updateQueue as UpdateQueue<ReactElementType>;
 	const pendingUpdate = updateQueue.shared.pending;
 	const { memorizedState } = processUpdateQueue<ReactElementType>(
 		baseState,
-		pendingUpdate
+		pendingUpdate,
+		renderLane
 	);
 	wip.memorizedState = memorizedState;
 	const nextChildren: ReactElementType = wip.memorizedState;
@@ -60,8 +65,11 @@ const updateHostElement = (wip: FiberNode): FiberNode | null => {
 	return wip.child;
 };
 
-const updateFunctionComponent = (wip: FiberNode): FiberNode | null => {
-	const nextChildren = renderWithHooks(wip);
+const updateFunctionComponent = (
+	wip: FiberNode,
+	renderLane: Lane
+): FiberNode | null => {
+	const nextChildren = renderWithHooks(wip, renderLane);
 	reconcileChildren(wip, nextChildren);
 	return wip.child;
 };

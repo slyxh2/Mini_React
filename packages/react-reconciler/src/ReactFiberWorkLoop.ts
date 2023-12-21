@@ -1,23 +1,54 @@
+import { scheduleMicroTask } from 'hostConfig';
 import { FiberNode, FiberRootNode, createWorkInProgress } from './ReactFiber';
 import { beginWork } from './ReactFiberBeginWork';
 import { commitMutationEffects } from './ReactFiberCommitWork';
 import { completeWork } from './ReactFiberCompleteWork';
 import { MutationMask, NoFlags } from './ReactFiberFlags';
+import {
+	Lane,
+	NoLane,
+	SyncLane,
+	getHighestPriorityLane,
+	markRootFinished,
+	mergeLanes
+} from './ReactFiberLane';
 import { HostRoot } from './ReactWorkTags';
+import { flushSyncCallbacks, scheduleSyncCallback } from './ReactSyncTaskQueue';
 
 let workInProgress: FiberNode | null = null;
+let wipRootRenderLande: Lane = NoLane;
 
-export function scheduleUpdateOnFiber(fiber: FiberNode) {
+export function scheduleUpdateOnFiber(fiber: FiberNode, lane: Lane) {
 	const root = markUpdateFromFiberToRoot(fiber);
 	if (root !== null) {
-		renderRoot(root);
+		markRootUpdated(root, lane);
+		ensureRootIsScheduled(root);
+	}
+}
+
+function markRootUpdated(root: FiberRootNode, lane: Lane) {
+	root.pendingLanes = mergeLanes(root.pendingLanes, lane);
+}
+
+function ensureRootIsScheduled(root: FiberRootNode) {
+	const updateLane = getHighestPriorityLane(root.pendingLanes);
+	if (updateLane === NoLane) {
+		return;
+	}
+
+	if (updateLane === SyncLane) {
+		// micro schedule
+		if (__DEV__) {
+			console.log('micro schedule, Lane: ', updateLane);
+		}
+		scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root, updateLane));
+		scheduleMicroTask(flushSyncCallbacks);
+	} else {
+		// macro schedule
 	}
 }
 
 function markUpdateFromFiberToRoot(fiber: FiberNode): FiberRootNode | null {
-	if (__DEV__) {
-		console.warn('markUpdateFromFiberToRoot start');
-	}
 	while (fiber.return) {
 		fiber = fiber.return;
 	}
@@ -27,12 +58,18 @@ function markUpdateFromFiberToRoot(fiber: FiberNode): FiberRootNode | null {
 	return null;
 }
 
-function prepareFreshStack(root: FiberRootNode) {
+function prepareFreshStack(root: FiberRootNode, lane: Lane) {
 	workInProgress = createWorkInProgress(root.current, {});
+	wipRootRenderLande = lane;
 }
 
-function renderRoot(root: FiberRootNode) {
-	prepareFreshStack(root);
+function performSyncWorkOnRoot(root: FiberRootNode, lane: Lane) {
+	const nextLane = getHighestPriorityLane(root.pendingLanes);
+	if (nextLane !== SyncLane) {
+		ensureRootIsScheduled(root);
+		return;
+	}
+	prepareFreshStack(root, lane);
 
 	while (true) {
 		try {
@@ -48,34 +85,10 @@ function renderRoot(root: FiberRootNode) {
 
 	const finishedWork = root.current.alternate;
 	root.finishedWork = finishedWork;
-	if (__DEV__) {
-		console.log(finishedWork);
-	}
+	wipRootRenderLande = NoLane;
+	root.finishedLane = lane;
+
 	commitRoot(root);
-}
-
-function commitRoot(root: FiberRootNode) {
-	const finishedWork = root.finishedWork;
-	if (finishedWork === null) return;
-	if (__DEV__) {
-		console.warn('commit root starts', finishedWork);
-	}
-	root.finishedWork = null;
-
-	// see if three commit sub stage need to be processed
-
-	const subtreeHasEffect =
-		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
-	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
-	if (subtreeHasEffect || rootHasEffect) {
-		// 1. beforeMutation
-		// 2. Mutation
-		commitMutationEffects(finishedWork);
-		root.current = finishedWork; // change wip fiber tree to current after mutation
-		// 3. layout (After Mutation useLayoutEffect)
-	} else {
-		root.current = finishedWork;
-	}
 }
 
 function workLoop() {
@@ -85,7 +98,7 @@ function workLoop() {
 }
 
 function performUnitOfWork(fiber: FiberNode) {
-	const next = beginWork(fiber);
+	const next = beginWork(fiber, wipRootRenderLande);
 	fiber.memorizedProps = fiber.pendingProps;
 	if (next === null) {
 		completeUnitOfWork(fiber);
@@ -107,4 +120,35 @@ function completeUnitOfWork(fiber: FiberNode) {
 		node = node.return;
 		workInProgress = node;
 	} while (node !== null);
+}
+
+function commitRoot(root: FiberRootNode) {
+	const finishedWork = root.finishedWork;
+	if (finishedWork === null) return;
+	if (__DEV__) {
+		console.warn('commit root starts', finishedWork);
+	}
+	const lane = root.finishedLane;
+	if (lane === NoLane && __DEV__) {
+		console.warn('root.finishedLane is NoLane!');
+	}
+
+	markRootFinished(root, lane);
+	root.finishedWork = null;
+	root.finishedLane = NoLane;
+
+	// see if three commit sub stage need to be processed
+
+	const subtreeHasEffect =
+		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
+	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
+	if (subtreeHasEffect || rootHasEffect) {
+		// 1. beforeMutation
+		// 2. Mutation
+		commitMutationEffects(finishedWork);
+		root.current = finishedWork; // change wip fiber tree to current after mutation
+		// 3. layout (After Mutation useLayoutEffect)
+	} else {
+		root.current = finishedWork;
+	}
 }

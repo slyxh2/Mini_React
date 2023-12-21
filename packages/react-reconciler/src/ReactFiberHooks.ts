@@ -15,11 +15,13 @@ import {
 	processUpdateQueue
 } from './ReactFiberUpdateQueue';
 import { scheduleUpdateOnFiber } from './ReactFiberWorkLoop';
+import { Lane, NoLane, requestUpdateLane } from './ReactFiberLane';
 
 const { currentDispathcher } = internals;
 let currentRenderingFiber: FiberNode | null = null;
 let workInProgressHook: Hook | null = null;
 let currentHook: Hook | null = null;
+let renderLane: Lane = NoLane;
 
 //useState in mount stage
 const mountState: UseStateType = <T>(
@@ -47,7 +49,11 @@ const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
 	const queue = hook.updateQueue as UpdateQueue<T>;
 	const pending = queue.shared.pending;
 	if (pending !== null) {
-		const { memorizedState } = processUpdateQueue(hook.memorizedState, pending);
+		const { memorizedState } = processUpdateQueue(
+			hook.memorizedState,
+			pending,
+			renderLane
+		);
 		hook.memorizedState = memorizedState;
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<T>];
@@ -61,9 +67,10 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 	useState: updateState
 };
 
-export function renderWithHooks(wip: FiberNode) {
+export function renderWithHooks(wip: FiberNode, lane: Lane) {
 	currentRenderingFiber = wip; // set current render fiber to wip
 	wip.memorizedState = null;
+	renderLane = lane;
 
 	const current = wip.alternate;
 	if (current !== null) {
@@ -77,9 +84,12 @@ export function renderWithHooks(wip: FiberNode) {
 	const Component = wip.type;
 	const props: Props = wip.pendingProps;
 	const children = Component(props);
+
 	currentRenderingFiber = null; // current wip render finish
 	workInProgressHook = null;
 	currentHook = null;
+	renderLane = NoLane;
+
 	return children;
 }
 
@@ -144,6 +154,8 @@ function dispatchSetState<T>(
 	queue: UpdateQueue<T>,
 	action: Action<T>
 ) {
-	enqueUpdate(queue, createUpdate(action));
-	scheduleUpdateOnFiber(fiber);
+	const lane = requestUpdateLane();
+	const update = createUpdate(action, lane);
+	enqueUpdate(queue, update);
+	scheduleUpdateOnFiber(fiber, lane);
 }
