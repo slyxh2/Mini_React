@@ -6,11 +6,13 @@ import {
 	insertChildToContainer,
 	removeChild
 } from 'hostConfig';
-import { FiberNode, FiberRootNode } from './ReactFiber';
+import { FiberNode, FiberRootNode, PendingPassiveEffects } from './ReactFiber';
 import {
 	ChildDeletion,
 	MutationMask,
 	NoFlags,
+	PassiveEffect,
+	PassiveMask,
 	Placement,
 	Update
 } from './ReactFiberFlags';
@@ -20,21 +22,27 @@ import {
 	HostRoot,
 	HostText
 } from './ReactWorkTags';
+import { FCUpdateQueue } from './ReactFiberHooks';
+import { EffectTag, HookHasEffect } from './ReactHookEffectTags';
+import { Effect } from 'shared/ReactHookTypes';
 
 let nextEffect: FiberNode | null = null;
 
-export function commitMutationEffects(finishedWork: FiberNode) {
+export function commitMutationEffects(
+	finishedWork: FiberNode,
+	root: FiberRootNode
+) {
 	nextEffect = finishedWork;
 	while (nextEffect !== null) {
 		const child: FiberNode | null = nextEffect.child;
 		if (
-			(nextEffect.subtreeFlags & MutationMask) !== NoFlags &&
+			(nextEffect.subtreeFlags & (MutationMask | PassiveMask)) !== NoFlags &&
 			child !== null
 		) {
 			nextEffect = child;
 		} else {
 			up: while (nextEffect !== null) {
-				commitMutationEffectsOnFiber(nextEffect);
+				commitMutationEffectsOnFiber(nextEffect, root);
 				const sibling: FiberNode | null = nextEffect.sibling;
 				if (sibling !== null) {
 					nextEffect = sibling;
@@ -46,7 +54,10 @@ export function commitMutationEffects(finishedWork: FiberNode) {
 	}
 }
 
-function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
+function commitMutationEffectsOnFiber(
+	finishedWork: FiberNode,
+	root: FiberRootNode
+) {
 	const flags = finishedWork.flags;
 	if ((flags & Placement) !== NoFlags) {
 		commitPlacement(finishedWork);
@@ -60,11 +71,85 @@ function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
 		const deletions = finishedWork.deletions;
 		if (deletions !== null) {
 			deletions.forEach((child) => {
-				commitDeletion(child);
+				commitDeletion(child, root);
 			});
 		}
 		finishedWork.flags &= ~ChildDeletion;
 	}
+
+	if ((flags & PassiveEffect) !== NoFlags) {
+		commitPassiveEffect(finishedWork, root, 'update');
+		finishedWork.flags &= ~PassiveEffect;
+	}
+}
+
+function commitPassiveEffect(
+	fiber: FiberNode,
+	root: FiberRootNode,
+	type: keyof PendingPassiveEffects
+) {
+	if (fiber.tag !== FunctionComponent) return;
+	if (type === 'update' && (fiber.flags & PassiveEffect) === NoFlags) return;
+	const updateQueue = fiber.updateQueue as FCUpdateQueue<any>;
+	if (updateQueue !== null) {
+		if (updateQueue.lastEffect === null && __DEV__) {
+			console.error('If update Queue exist, it must has lastEffect!!');
+		}
+		root.pendingPassiveEffects[type].push(updateQueue.lastEffect!);
+	}
+}
+
+function commitHookEffectList(
+	tags: EffectTag,
+	lastEffect: Effect,
+	callback: (effect: Effect) => void
+) {
+	let effect = lastEffect.next as Effect;
+	do {
+		if ((effect.tag & tags) === tags) {
+			callback(effect);
+		}
+		effect = effect.next as Effect;
+	} while (effect !== lastEffect.next);
+}
+
+// in unmount stage, call all destory callback
+export function commitHookEffectListUnmount(
+	tags: EffectTag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(tags, lastEffect, (effect) => {
+		const destory = effect.destory;
+		if (typeof destory === 'function') {
+			destory();
+		}
+		effect.tag &= ~HookHasEffect;
+	});
+}
+
+// call all destory in the LAST!!! update
+export function commitHookEffectListDestory(
+	tags: EffectTag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(tags, lastEffect, (effect) => {
+		const destory = effect.destory;
+		if (typeof destory === 'function') {
+			destory();
+		}
+	});
+}
+
+export function commitHookEffectListCreate(
+	tags: EffectTag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(tags, lastEffect, (effect) => {
+		const create = effect.create;
+		if (typeof create === 'function') {
+			effect.destory = create();
+		}
+	});
 }
 
 function recordHostChildrenToDelete(
@@ -87,20 +172,21 @@ function recordHostChildrenToDelete(
 	}
 }
 
-function commitDeletion(childToDelete: FiberNode) {
+function commitDeletion(childToDelete: FiberNode, root: FiberRootNode) {
 	const rootChildrenToDelete: FiberNode[] = [];
 
 	commitNestedComponent(childToDelete, (unmountFiber) => {
 		switch (unmountFiber.tag) {
 			case HostComponent:
 				recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber);
-				// TODO 解绑ref
+				// 解绑ref
 				return;
 			case HostText:
 				recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber);
 				return;
 			case FunctionComponent:
-				// TODO useEffect unmount 、解绑ref
+				// useEffect unmount 、解绑ref
+				commitPassiveEffect(unmountFiber, root, 'unmount');
 				return;
 			default:
 				if (__DEV__) {

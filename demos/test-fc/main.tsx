@@ -1,51 +1,34 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import ReactDOM from 'react-dom/client'
-// const App = () => {
-//   const [num, setNum] = useState(20);
-//   console.log('App run', num);
-//   function asyncSet() {
-//     setNum(num + 1);
-//     setNum(num + 1);
-//   }
-//   return <div>
-//     <button onClick={asyncSet}>++</button>
-//     <p>{num}</p>
-//     <Child />
-//   </div>
-// }
+function App() {
+  const [num, updateNum] = useState(0);
+  useEffect(() => {
+    console.log('App mount');
+  }, []);
 
-// const Child = () => {
-//   const [num, setNum] = useState(0);
-//   return <div>
-//     <h1 onClick={() => setNum(num + 1)}>patrick288</h1>
-//     <div>{num}</div>
-//   </div>
-// }
+  useEffect(() => {
+    console.log('num change create', num);
+    return () => {
+      console.log('num change destroy', num);
+    };
+  }, [num]);
 
-const EventCom = () => {
-  const [num, setNum] = useState(0);
-  // let arr = num % 2 === 0
-  //   ? [<li key="1">1</li>, <li key="2">2</li>, <li key="3">3</li>]
-  //   : [<li key="3">3</li>, <li key="2">2</li>, <li key="1">1</li>]
-
-
-  const arr =
-    num % 2 === 0
-      ? [<li key="1">1</li>, <li key="2">2</li>, <li key="3">3</li>]
-      : [<li key="3">3</li>, <li key="2">2</li>, <li key="1">1</li>];
   return (
-    <ul onClickCapture={() => {
-      setNum((num) => num + 1);
-      setNum((num) => num + 1);
-      setNum((num) => num + 1);
-    }}>
-      {num}
-    </ul>
+    <div onClick={() => updateNum(num + 1)}>
+      {num === 0 ? <Child /> : 'noop'}
+    </div>
   );
-  // return <ul onClickCapture={() => setNum(num + 1)}>{arr}</ul>
+}
+
+function Child() {
+  useEffect(() => {
+    console.log('Child mount');
+    return () => console.log('Child unmount');
+  }, []);
+
+  return 'i am child';
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  // <App />
-  <EventCom />
+  <App />
 )

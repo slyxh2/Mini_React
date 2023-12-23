@@ -10,6 +10,11 @@ export const useState: Dispatcher['useState'] = (initialState: any) => {
 	return dispathcer.useState(initialState);
 };
 
+export const useEffect: Dispatcher['useEffect'] = (create, deps) => {
+	const dispathcer = resolveDispatcher();
+	return dispathcer.useEffect(create, deps);
+};
+
 export const __SECRET__INTERNAL__ = {
 	currentDispathcher
 };
