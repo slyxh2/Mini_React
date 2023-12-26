@@ -113,7 +113,7 @@ function collectPaths(
 							paths.capture.unshift(callback);
 						} else {
 							// bubble
-							paths.capture.push(callback);
+							paths.bubble.push(callback);
 						}
 					}
 				});
