@@ -83,6 +83,7 @@ function commitMutationEffectsOnFiber(
 	}
 }
 
+// collect useEffect callback
 function commitPassiveEffect(
 	fiber: FiberNode,
 	root: FiberRootNode,

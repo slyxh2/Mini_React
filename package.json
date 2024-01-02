@@ -8,6 +8,7 @@
     "build:dev": "rollup --bundleConfigAsCjs --config scripts/rollup/dev.config.js",
     "demo": "vite serve demos/test-fc --config scripts/vite/vite.config.js --force",
     "demo:noop": "vite serve demos/test-noop-render --config scripts/vite/vite.noop.config.js --force",
+    "demo:con": "vite serve demos/test-concurrent --config scripts/vite/vite.config.js --force",
     "test": "jest --config scripts/jest/jest.config.js"
   },
   "keywords": [],
