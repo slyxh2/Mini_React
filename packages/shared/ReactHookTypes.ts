@@ -1,3 +1,4 @@
+import { Update } from 'react-reconciler/src/ReactFiberUpdateQueue';
 import { Action } from './ReactTypes';
 import { EffectTag } from 'react-reconciler/src/ReactHookEffectTags';
 
@@ -21,6 +22,8 @@ export interface Hook {
 	memorizedState: any;
 	updateQueue: unknown;
 	next: Hook | null;
+	baseState: any;
+	baseQueue: Update<any> | null;
 }
 
 export interface Effect {

@@ -10,6 +10,7 @@ import { Container } from 'hostConfig';
 import { UpdateQueue } from './ReactFiberUpdateQueue';
 import { Lane, Lanes, NoLane, NoLanes } from './ReactFiberLane';
 import { Effect } from 'shared/ReactHookTypes';
+import { CallbackNode } from 'scheduler';
 
 export class FiberNode {
 	type: any;
@@ -68,6 +69,8 @@ export class FiberRootNode {
 	pendingLanes: Lanes;
 	finishedLane: Lane;
 	pendingPassiveEffects: PendingPassiveEffects;
+	callbackNode: CallbackNode | null;
+	callbackPriority: Lane;
 	constructor(container: Container, hostRootFiber: FiberNode) {
 		this.container = container;
 		this.current = hostRootFiber;
@@ -79,6 +82,8 @@ export class FiberRootNode {
 			unmount: [],
 			update: []
 		};
+		this.callbackNode = null;
+		this.callbackPriority = NoLane;
 	}
 }
 

@@ -55,17 +55,38 @@ const mountState: UseStateType = <T>(
 
 // useState in update stage
 const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
-	const hook = updateWorkInProgressHook();
+	const hook = updateWorkInProgressHook(); // find current related hook
+
 	const queue = hook.updateQueue as UpdateQueue<T>;
+	const baseState = hook.baseState;
 	const pending = queue.shared.pending;
-	queue.shared.pending = null;
+
+	const current = currentHook!;
+	let baseQueue = current.baseQueue;
+
+	// queue.shared.pending = null; can not set null in concurrent mode!
 	if (pending !== null) {
-		const { memorizedState } = processUpdateQueue(
-			hook.memorizedState,
-			pending,
-			renderLane
-		);
-		hook.memorizedState = memorizedState;
+		// pending baseQueue update store in current
+		// chain baseQueue and pending to one circular linked list
+		if (baseQueue !== null) {
+			const baseFirst = baseQueue.next;
+			const pendingFirst = pending.next;
+			baseQueue.next = pendingFirst;
+			pending.next = baseFirst;
+		}
+		baseQueue = pending;
+		current.baseQueue = pending;
+		queue.shared.pending = null;
+		if (baseQueue !== null) {
+			const {
+				memorizedState,
+				baseQueue: newBaseQueue,
+				baseState: newBaseState
+			} = processUpdateQueue(baseState, baseQueue, renderLane);
+			hook.memorizedState = memorizedState;
+			hook.baseState = newBaseState;
+			hook.baseQueue = newBaseQueue;
+		}
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<T>];
 };
@@ -201,7 +222,9 @@ function mountWorkInProgressHook(): Hook {
 	const hook: Hook = {
 		memorizedState: null,
 		updateQueue: null,
-		next: null
+		next: null,
+		baseState: null,
+		baseQueue: null
 	};
 	if (workInProgressHook === null) {
 		if (currentRenderingFiber === null) {
@@ -237,7 +260,9 @@ function updateWorkInProgressHook(): Hook {
 	const newHook: Hook = {
 		memorizedState: currentHook.memorizedState,
 		updateQueue: currentHook.updateQueue,
-		next: null
+		next: null,
+		baseState: null,
+		baseQueue: null
 	};
 	if (workInProgressHook === null) {
 		if (currentRenderingFiber === null) {
