@@ -9,6 +9,7 @@ import {
 } from 'hostConfig';
 import { FiberNode } from './ReactFiber';
 import {
+	ContextProvider,
 	Fragment,
 	FunctionComponent,
 	HostComponent,
@@ -17,6 +18,7 @@ import {
 } from './ReactWorkTags';
 import { NoFlags, Ref, Update } from './ReactFiberFlags';
 import { updateFiberProps } from 'react-dom/src/ReactSyntheticEvent';
+import { popProvider } from './ReactFiberContext';
 
 function markUpdate(fiber: FiberNode) {
 	fiber.flags |= Update;
@@ -67,6 +69,12 @@ export const completeWork = (wip: FiberNode) => {
 		case HostRoot:
 		case FunctionComponent:
 		case Fragment:
+			bubbleProperties(wip);
+			return null;
+		case ContextProvider:
+			const providerType = wip.type; // provider object
+			const context = providerType._context;
+			popProvider(context);
 			bubbleProperties(wip);
 			return null;
 		default:

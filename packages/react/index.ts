@@ -6,6 +6,7 @@ import {
 } from './src/ReactCurrentDispatcher';
 import { jsx, isVaildElement as isVaildElementFn } from './src/jsx';
 
+export { createContext } from './src/ReactContext';
 export const useState: Dispatcher['useState'] = (initialState: any) => {
 	const dispathcer = resolveDispatcher();
 	return dispathcer.useState(initialState);
@@ -24,6 +25,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 export const useRef: Dispatcher['useRef'] = (initialValue) => {
 	const dispathcer = resolveDispatcher();
 	return dispathcer.useRef(initialValue);
+};
+
+export const useContext: Dispatcher['useContext'] = (initialValue) => {
+	const dispathcer = resolveDispatcher();
+	return dispathcer.useContext(initialValue);
 };
 
 export const __SECRET__INTERNAL__ = {

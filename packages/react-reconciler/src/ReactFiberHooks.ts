@@ -1,4 +1,4 @@
-import { Action, Props } from 'shared/ReactTypes';
+import { Action, Props, ReactContext } from 'shared/ReactTypes';
 import { FiberNode } from './ReactFiber';
 import {
 	Dispatch,
@@ -9,6 +9,7 @@ import {
 	Hook,
 	UesRefType,
 	UpdateStateType,
+	UseContextType,
 	UseEffectType,
 	UseStateType,
 	UseTransitionType
@@ -234,18 +235,32 @@ const updateRef: UesRefType = () => {
 	return hook.memorizedState;
 };
 
+/**
+ * useContext
+ */
+const readContext: UseContextType = <T>(context: ReactContext<T>) => {
+	const consumer = currentRenderingFiber;
+	if (!consumer) {
+		throw new Error('useContext is only used in Function component!');
+	}
+	const value = context._currentValue;
+	return value;
+};
+
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
 	useTransition: mountTransition,
-	useRef: mountRef
+	useRef: mountRef,
+	useContext: readContext
 };
 
 const HooksDispatcherOnUpdate: Dispatcher = {
 	useState: updateState,
 	useEffect: updateEffect,
 	useTransition: updateTransition,
-	useRef: updateRef
+	useRef: updateRef,
+	useContext: readContext
 };
 
 export function renderWithHooks(wip: FiberNode, lane: Lane) {

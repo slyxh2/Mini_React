@@ -1,5 +1,6 @@
 import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
 import {
+	ContextProvider,
 	Fragment,
 	FunctionComponent,
 	HostComponent,
@@ -11,6 +12,7 @@ import { UpdateQueue } from './ReactFiberUpdateQueue';
 import { Lane, Lanes, NoLane, NoLanes } from './ReactFiberLane';
 import { Effect } from 'shared/ReactHookTypes';
 import { CallbackNode } from 'scheduler';
+import { REACT_PROVIDER_TYPE } from 'shared/ReactSymbols';
 
 export class FiberNode {
 	type: any;
@@ -120,6 +122,12 @@ export function createFiberFromElement(element: ReactElementType): FiberNode {
 
 	if (typeof type === 'string') {
 		fiberTag = HostComponent;
+	} else if (
+		typeof type === 'object' &&
+		type.$$typeof === REACT_PROVIDER_TYPE
+	) {
+		// ContextProvider
+		fiberTag = ContextProvider;
 	} else if (typeof type !== 'function' && __DEV__) {
 		console.warn('This type is not handled');
 	}

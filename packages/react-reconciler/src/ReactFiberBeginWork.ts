@@ -2,6 +2,7 @@ import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './ReactFiber';
 import { UpdateQueue, processUpdateQueue } from './ReactFiberUpdateQueue';
 import {
+	ContextProvider,
 	Fragment,
 	FunctionComponent,
 	HostComponent,
@@ -12,6 +13,7 @@ import { mountChildFibers, reconcileChildFibers } from './ReactChildFibers';
 import { renderWithHooks } from './ReactFiberHooks';
 import { Lane } from './ReactFiberLane';
 import { Ref } from './ReactFiberFlags';
+import { pushProvider } from './ReactFiberContext';
 /**
  * Mount -> the first time run React
  * In mount stage, HostFiberNode will 1. calculate the new state 2. create the child fiberNode
@@ -35,6 +37,8 @@ export const beginWork = (
 			return updateFunctionComponent(wip, renderLane);
 		case Fragment:
 			return updateFragment(wip);
+		case ContextProvider:
+			return updateContextProvider(wip);
 		default:
 			if (__DEV__) {
 				console.warn('This Fiber type is not implement');
@@ -79,6 +83,18 @@ const updateFunctionComponent = (
 const updateFragment = (wip: FiberNode): FiberNode | null => {
 	const nextChildren = wip.pendingProps;
 	// const nextChildren = nextProps.children;
+	reconcileChildren(wip, nextChildren);
+	return wip.child;
+};
+
+const updateContextProvider = (wip: FiberNode): FiberNode | null => {
+	const providerType = wip.type; // provider object
+	const context = providerType._context;
+	const newProps = wip.pendingProps;
+	// update the context value
+	pushProvider(context, newProps.value);
+
+	const nextChildren = newProps.children;
 	reconcileChildren(wip, nextChildren);
 	return wip.child;
 };

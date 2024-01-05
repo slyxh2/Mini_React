@@ -15,6 +15,7 @@ const ReactElement = (
 ): ReactElementType => {
 	const element = {
 		$$typeof: REACT_ELEMENT_TYPE,
+		//Function -> function component; string->host element; context -> context object
 		type,
 		key,
 		ref,
