@@ -7,8 +7,10 @@ import {
 	EffectCallback,
 	EffectDeps,
 	Hook,
+	UpdateStateType,
 	UseEffectType,
-	UseStateType
+	UseStateType,
+	UseTransitionType
 } from 'shared/ReactHookTypes';
 import internals from 'shared/ReactInternals';
 import {
@@ -27,10 +29,10 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 	lastEffect: Effect | null;
 }
 
-const { currentDispathcher } = internals;
+const { currentDispathcher, ReactCurrentBatchConfig } = internals;
 let currentRenderingFiber: FiberNode | null = null;
 let workInProgressHook: Hook | null = null;
-let currentHook: Hook | null = null;
+let currentHook: Hook | null = null; // hook in current FiberNode, Not WIP!
 let renderLane: Lane = NoLane;
 
 //useState in mount stage
@@ -43,6 +45,7 @@ const mountState: UseStateType = <T>(
 	const updateQueue = createUpdateQueue<T>();
 	hook.updateQueue = updateQueue;
 	hook.memorizedState = memorizedState;
+	hook.baseState = memorizedState;
 
 	const dispatch = (dispatchSetState<T>).bind(
 		null,
@@ -54,7 +57,7 @@ const mountState: UseStateType = <T>(
 };
 
 // useState in update stage
-const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
+const updateState: UpdateStateType = <T>(): [T, Dispatch<T>] => {
 	const hook = updateWorkInProgressHook(); // find current related hook
 
 	const queue = hook.updateQueue as UpdateQueue<T>;
@@ -77,16 +80,16 @@ const updateState: UseStateType = <T>(): [T, Dispatch<T>] => {
 		baseQueue = pending;
 		current.baseQueue = pending;
 		queue.shared.pending = null;
-		if (baseQueue !== null) {
-			const {
-				memorizedState,
-				baseQueue: newBaseQueue,
-				baseState: newBaseState
-			} = processUpdateQueue(baseState, baseQueue, renderLane);
-			hook.memorizedState = memorizedState;
-			hook.baseState = newBaseState;
-			hook.baseQueue = newBaseQueue;
-		}
+	}
+	if (baseQueue !== null) {
+		const {
+			memorizedState,
+			baseQueue: newBaseQueue,
+			baseState: newBaseState
+		} = processUpdateQueue(baseState, baseQueue, renderLane);
+		hook.memorizedState = memorizedState;
+		hook.baseState = newBaseState;
+		hook.baseQueue = newBaseQueue;
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<T>];
 };
@@ -139,12 +142,6 @@ function pushEffect(
 	return effect;
 }
 
-function createFCUpdateQueue<State>() {
-	const updateQueue = createUpdateQueue<State>() as FCUpdateQueue<State>;
-	updateQueue.lastEffect = null;
-	return updateQueue;
-}
-
 // useEffect in update stage
 const updateEffect: UseEffectType = (create, deps) => {
 	const hook = updateWorkInProgressHook();
@@ -181,14 +178,43 @@ const areHookInputsEqual = (nextDeps: EffectDeps, prevDeps: EffectDeps) => {
 	return true;
 };
 
+const mountTransition: UseTransitionType = () => {
+	const [isPending, setPending] = mountState<boolean>(false);
+	const hook = mountWorkInProgressHook();
+	const start = startTransition.bind(null, setPending);
+	hook.memorizedState = start;
+	return [isPending, start];
+};
+
+const updateTransition: UseTransitionType = () => {
+	const [isPending] = updateState<boolean>();
+	const hook = updateWorkInProgressHook();
+	const start = hook.memorizedState;
+	return [isPending, start];
+};
+
+const startTransition = (
+	setPending: Dispatch<boolean>,
+	callback: () => void
+) => {
+	setPending(true);
+	const prevTransition = ReactCurrentBatchConfig.transition;
+	ReactCurrentBatchConfig.transition = 1;
+	callback();
+	setPending(false);
+	ReactCurrentBatchConfig.transition = prevTransition;
+};
+
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState,
-	useEffect: mountEffect
+	useEffect: mountEffect,
+	useTransition: mountTransition
 };
 
 const HooksDispatcherOnUpdate: Dispatcher = {
 	useState: updateState,
-	useEffect: updateEffect
+	useEffect: updateEffect,
+	useTransition: updateTransition
 };
 
 export function renderWithHooks(wip: FiberNode, lane: Lane) {
@@ -261,8 +287,8 @@ function updateWorkInProgressHook(): Hook {
 		memorizedState: currentHook.memorizedState,
 		updateQueue: currentHook.updateQueue,
 		next: null,
-		baseState: null,
-		baseQueue: null
+		baseState: currentHook.baseState,
+		baseQueue: currentHook.baseQueue
 	};
 	if (workInProgressHook === null) {
 		if (currentRenderingFiber === null) {
@@ -287,4 +313,10 @@ function dispatchSetState<T>(
 	const update = createUpdate(action, lane);
 	enqueUpdate(queue, update);
 	scheduleUpdateOnFiber(fiber, lane);
+}
+
+function createFCUpdateQueue<State>() {
+	const updateQueue = createUpdateQueue<State>() as FCUpdateQueue<State>;
+	updateQueue.lastEffect = null;
+	return updateQueue;
 }

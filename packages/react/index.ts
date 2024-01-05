@@ -1,4 +1,5 @@
 import { Dispatcher } from 'shared/ReactHookTypes';
+import ReactCurrentBatchConfig from './src/ReactCurrentBatchConfig';
 import {
 	resolveDispatcher,
 	currentDispathcher
@@ -15,8 +16,14 @@ export const useEffect: Dispatcher['useEffect'] = (create, deps) => {
 	return dispathcer.useEffect(create, deps);
 };
 
+export const useTransition: Dispatcher['useTransition'] = () => {
+	const dispathcer = resolveDispatcher();
+	return dispathcer.useTransition();
+};
+
 export const __SECRET__INTERNAL__ = {
-	currentDispathcher
+	currentDispathcher,
+	ReactCurrentBatchConfig
 };
 export const version = '0.0.0';
 export const createElement = jsx;

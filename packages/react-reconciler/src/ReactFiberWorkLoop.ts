@@ -42,6 +42,9 @@ const RootInComplete = 1;
 const RootComplete = 2;
 
 export function scheduleUpdateOnFiber(fiber: FiberNode, lane: Lane) {
+	if (__DEV__) {
+		console.warn('scheduleUpdateOnFiber start, lane:', lane);
+	}
 	const root = markUpdateFromFiberToRoot(fiber);
 	if (root !== null) {
 		markRootUpdated(root, lane);
@@ -54,6 +57,9 @@ function markRootUpdated(root: FiberRootNode, lane: Lane) {
 }
 
 function ensureRootIsScheduled(root: FiberRootNode) {
+	if (__DEV__) {
+		console.warn('ensureRootIsScheduled');
+	}
 	const lane = getHighestPriorityLane(root.pendingLanes);
 	const existingCallbackNode = root.callbackNode;
 
