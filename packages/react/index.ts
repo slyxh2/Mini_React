@@ -21,6 +21,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 	return dispathcer.useTransition();
 };
 
+export const useRef: Dispatcher['useRef'] = (initialValue) => {
+	const dispathcer = resolveDispatcher();
+	return dispathcer.useRef(initialValue);
+};
+
 export const __SECRET__INTERNAL__ = {
 	currentDispathcher,
 	ReactCurrentBatchConfig

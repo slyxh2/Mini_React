@@ -7,6 +7,7 @@ import {
 	EffectCallback,
 	EffectDeps,
 	Hook,
+	UesRefType,
 	UpdateStateType,
 	UseEffectType,
 	UseStateType,
@@ -35,6 +36,10 @@ let workInProgressHook: Hook | null = null;
 let currentHook: Hook | null = null; // hook in current FiberNode, Not WIP!
 let renderLane: Lane = NoLane;
 
+/**
+ *
+ * useState
+ */
 //useState in mount stage
 const mountState: UseStateType = <T>(
 	initialState: (() => T) | T
@@ -94,6 +99,10 @@ const updateState: UpdateStateType = <T>(): [T, Dispatch<T>] => {
 	return [hook.memorizedState, queue.dispatch as Dispatch<T>];
 };
 
+/**
+ *
+ * useEffect
+ */
 // useEffect in mount stage
 const mountEffect: UseEffectType = (create, deps) => {
 	const hook = mountWorkInProgressHook();
@@ -178,6 +187,10 @@ const areHookInputsEqual = (nextDeps: EffectDeps, prevDeps: EffectDeps) => {
 	return true;
 };
 
+/**
+ *
+ * useTransition
+ */
 const mountTransition: UseTransitionType = () => {
 	const [isPending, setPending] = mountState<boolean>(false);
 	const hook = mountWorkInProgressHook();
@@ -205,16 +218,34 @@ const startTransition = (
 	ReactCurrentBatchConfig.transition = prevTransition;
 };
 
+/**
+ *
+ * useRef
+ */
+const mountRef: UesRefType = (initialValue) => {
+	const hook = mountWorkInProgressHook();
+	const ref = { current: initialValue };
+	hook.memorizedState = ref;
+	return ref;
+};
+
+const updateRef: UesRefType = () => {
+	const hook = updateWorkInProgressHook();
+	return hook.memorizedState;
+};
+
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
-	useTransition: mountTransition
+	useTransition: mountTransition,
+	useRef: mountRef
 };
 
 const HooksDispatcherOnUpdate: Dispatcher = {
 	useState: updateState,
 	useEffect: updateEffect,
-	useTransition: updateTransition
+	useTransition: updateTransition,
+	useRef: updateRef
 };
 
 export function renderWithHooks(wip: FiberNode, lane: Lane) {

@@ -16,6 +16,7 @@ import {
 	commitHookEffectListCreate,
 	commitHookEffectListDestory,
 	commitHookEffectListUnmount,
+	commitLayoutEffects,
 	commitMutationEffects
 } from './ReactFiberCommitWork';
 import { completeWork } from './ReactFiberCompleteWork';
@@ -323,7 +324,8 @@ function commitRoot(root: FiberRootNode) {
 		// 2. Mutation
 		commitMutationEffects(finishedWork, root);
 		root.current = finishedWork; // change wip fiber tree to current after mutation
-		// 3. layout (After Mutation useLayoutEffect)
+		// 3. layout (useLayoutEffect, handle Ref)
+		commitLayoutEffects(finishedWork, root);
 	} else {
 		root.current = finishedWork;
 	}

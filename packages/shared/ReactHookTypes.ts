@@ -37,10 +37,16 @@ export type UseTransitionType = () => [
 ];
 type StartTransition = (callback: () => void) => void;
 
+/**
+ * useRef
+ */
+export type UesRefType = <T>(initialValue: T) => { current: T };
+
 export interface Dispatcher {
 	useState: UseStateType;
 	useEffect: UseEffectType;
 	useTransition: UseTransitionType;
+	useRef: UesRefType;
 }
 
 export interface Hook {

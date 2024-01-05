@@ -11,6 +11,7 @@ import {
 import { mountChildFibers, reconcileChildFibers } from './ReactChildFibers';
 import { renderWithHooks } from './ReactFiberHooks';
 import { Lane } from './ReactFiberLane';
+import { Ref } from './ReactFiberFlags';
 /**
  * Mount -> the first time run React
  * In mount stage, HostFiberNode will 1. calculate the new state 2. create the child fiberNode
@@ -61,6 +62,7 @@ const updateHostRoot = (wip: FiberNode, renderLane: Lane): FiberNode | null => {
 const updateHostElement = (wip: FiberNode): FiberNode | null => {
 	const nextProps = wip.pendingProps;
 	const nextChildren = nextProps.children;
+	markRef(wip.alternate, wip);
 	reconcileChildren(wip, nextChildren);
 	return wip.child;
 };
@@ -89,5 +91,16 @@ const reconcileChildren = (wip: FiberNode, children?: ReactElementType) => {
 	} else {
 		// mount
 		wip.child = mountChildFibers(wip, null, children);
+	}
+};
+
+const markRef = (current: FiberNode | null, workInProgress: FiberNode) => {
+	const ref = workInProgress.ref;
+
+	if (
+		(current === null && ref !== null) ||
+		(current !== null && current.ref === ref)
+	) {
+		workInProgress.flags |= Ref;
 	}
 };

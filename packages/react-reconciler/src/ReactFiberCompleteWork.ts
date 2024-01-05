@@ -15,12 +15,15 @@ import {
 	HostRoot,
 	HostText
 } from './ReactWorkTags';
-import { NoFlags, Update } from './ReactFiberFlags';
+import { NoFlags, Ref, Update } from './ReactFiberFlags';
 import { updateFiberProps } from 'react-dom/src/ReactSyntheticEvent';
+
 function markUpdate(fiber: FiberNode) {
 	fiber.flags |= Update;
 }
-
+function markRef(fiber: FiberNode) {
+	fiber.flags |= Ref;
+}
 export const completeWork = (wip: FiberNode) => {
 	const newProps = wip.pendingProps;
 	const current = wip.alternate;
@@ -28,13 +31,21 @@ export const completeWork = (wip: FiberNode) => {
 	switch (wip.tag) {
 		case HostComponent:
 			if (current !== null && wip.stateNode) {
-				//TODO: update
+				// update
 				updateFiberProps(wip.stateNode, newProps);
+				// if wip ref is different with current ref, mark it
+				if (current.ref !== wip.ref) {
+					markRef(wip);
+				}
 			} else {
 				// mount
 				const instance = createInstance(wip.type, newProps);
 				appendAllChildren(instance, wip);
 				wip.stateNode = instance;
+				// markRef
+				if (wip.ref !== null) {
+					markRef(wip);
+				}
 			}
 			bubbleProperties(wip);
 			return null;
