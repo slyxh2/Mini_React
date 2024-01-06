@@ -10,6 +10,7 @@ import { FiberNode, FiberRootNode, PendingPassiveEffects } from './ReactFiber';
 import {
 	ChildDeletion,
 	Flags,
+	LayoutEffect,
 	LayoutMask,
 	MutationMask,
 	NoFlags,
@@ -68,7 +69,7 @@ function commitMutationEffectsOnFiber(
 	}
 
 	if ((flags & PassiveEffect) !== NoFlags) {
-		commitPassiveEffect(finishedWork, root, 'update');
+		collectPassiveEffect(finishedWork, root, 'update');
 		finishedWork.flags &= ~PassiveEffect;
 	}
 	if ((flags & Ref) !== NoFlags && tag === HostComponent) {
@@ -88,13 +89,17 @@ function safelyDetachRef(current: FiberNode) {
 	}
 }
 function commitLayoutEffectsOnFiber(
-	finishedWork: FiberNode
-	// root: FiberRootNode
+	finishedWork: FiberNode,
+	root: FiberRootNode
 ) {
 	const { flags, tag } = finishedWork;
 	if ((flags & Ref) !== NoFlags && tag === HostComponent) {
 		// bind new Ref
 		safelyAttachRef(finishedWork);
+	}
+	if ((flags & LayoutEffect) !== NoFlags) {
+		collectLayoutEffect(finishedWork, root, 'update');
+		finishedWork.flags &= ~LayoutEffect;
 	}
 }
 
@@ -137,7 +142,7 @@ export function commitEffects(
 }
 
 // collect useEffect callback
-function commitPassiveEffect(
+function collectPassiveEffect(
 	fiber: FiberNode,
 	root: FiberRootNode,
 	type: keyof PendingPassiveEffects
@@ -150,6 +155,23 @@ function commitPassiveEffect(
 			console.error('If update Queue exist, it must has lastEffect!!');
 		}
 		root.pendingPassiveEffects[type].push(updateQueue.lastEffect!);
+	}
+}
+
+// collect useLayoutEffect callback
+function collectLayoutEffect(
+	fiber: FiberNode,
+	root: FiberRootNode,
+	type: keyof PendingPassiveEffects
+) {
+	if (fiber.tag !== FunctionComponent) return;
+	if (type === 'update' && (fiber.flags & LayoutEffect) === NoFlags) return;
+	const updateQueue = fiber.updateQueue as FCUpdateQueue<any>;
+	if (updateQueue !== null) {
+		if (updateQueue.lastEffect === null && __DEV__) {
+			console.error('If update Queue exist, it must has lastEffect!!');
+		}
+		root.pendingLayoutEffects[type].push(updateQueue.lastEffect!);
 	}
 }
 
@@ -240,8 +262,9 @@ function commitDeletion(childToDelete: FiberNode, root: FiberRootNode) {
 				recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber);
 				return;
 			case FunctionComponent:
-				// useEffect unmount 、解绑ref
-				commitPassiveEffect(unmountFiber, root, 'unmount');
+				// useEffect useLayoutEffect unmount 、解绑ref
+				collectPassiveEffect(unmountFiber, root, 'unmount');
+				collectLayoutEffect(unmountFiber, root, 'unmount');
 				return;
 			default:
 				if (__DEV__) {

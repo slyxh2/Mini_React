@@ -8,6 +8,7 @@ import { scheduleMicroTask } from 'hostConfig';
 import {
 	FiberNode,
 	FiberRootNode,
+	PendingLayoutEffects,
 	PendingPassiveEffects,
 	createWorkInProgress
 } from './ReactFiber';
@@ -20,7 +21,12 @@ import {
 	commitMutationEffects
 } from './ReactFiberCommitWork';
 import { completeWork } from './ReactFiberCompleteWork';
-import { MutationMask, NoFlags, PassiveMask } from './ReactFiberFlags';
+import {
+	LayoutEffectMask,
+	MutationMask,
+	NoFlags,
+	PassiveMask
+} from './ReactFiberFlags';
 import {
 	Lane,
 	NoLane,
@@ -32,7 +38,12 @@ import {
 } from './ReactFiberLane';
 import { HostRoot } from './ReactWorkTags';
 import { flushSyncCallbacks, scheduleSyncCallback } from './ReactSyncTaskQueue';
-import { HookHasEffect, Passive } from './ReactHookEffectTags';
+import {
+	EffectTag,
+	HookHasEffect,
+	Layout,
+	Passive
+} from './ReactHookEffectTags';
 
 let workInProgress: FiberNode | null = null;
 let wipRootRenderLane: Lane = NoLane;
@@ -63,7 +74,6 @@ function ensureRootIsScheduled(root: FiberRootNode) {
 	}
 	const lane = getHighestPriorityLane(root.pendingLanes);
 	const existingCallbackNode = root.callbackNode;
-
 	if (lane === NoLane) {
 		if (existingCallbackNode !== null) {
 			unstable_cancelCallback(existingCallbackNode);
@@ -264,25 +274,36 @@ function completeUnitOfWork(fiber: FiberNode) {
 function flushPassiveEffects(
 	pendingPassiveEffects: PendingPassiveEffects
 ): boolean {
-	let didFlushPassiveEffect = false;
-	pendingPassiveEffects.unmount.forEach((effect) => {
-		didFlushPassiveEffect = true;
-		commitHookEffectListUnmount(Passive, effect);
-	});
-	pendingPassiveEffects.unmount = [];
+	return flushEffects(pendingPassiveEffects, Passive);
+}
 
-	pendingPassiveEffects.update.forEach((effect) => {
-		didFlushPassiveEffect = true;
-		commitHookEffectListDestory(Passive | HookHasEffect, effect);
+function flushLayoutEffects(pendingLayoutEffects: PendingLayoutEffects) {
+	flushEffects(pendingLayoutEffects, Layout);
+}
+
+function flushEffects(
+	pendingEffects: PendingPassiveEffects | PendingLayoutEffects,
+	effectTag: EffectTag
+): boolean {
+	let didFlushEffect = false;
+	pendingEffects.unmount.forEach((effect) => {
+		didFlushEffect = true;
+		commitHookEffectListUnmount(effectTag, effect);
 	});
-	pendingPassiveEffects.update.forEach((effect) => {
-		didFlushPassiveEffect = true;
-		commitHookEffectListCreate(Passive | HookHasEffect, effect);
+	pendingEffects.unmount = [];
+
+	pendingEffects.update.forEach((effect) => {
+		didFlushEffect = true;
+		commitHookEffectListDestory(effectTag | HookHasEffect, effect);
 	});
-	pendingPassiveEffects.update = [];
+	pendingEffects.update.forEach((effect) => {
+		didFlushEffect = true;
+		commitHookEffectListCreate(effectTag | HookHasEffect, effect);
+	});
+	pendingEffects.update = [];
 
 	flushSyncCallbacks();
-	return didFlushPassiveEffect;
+	return didFlushEffect;
 }
 
 function commitRoot(root: FiberRootNode) {
@@ -319,6 +340,9 @@ function commitRoot(root: FiberRootNode) {
 	const subtreeHasEffect =
 		(finishedWork.subtreeFlags & MutationMask) !== NoFlags;
 	const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags;
+	const hasLayoutEffect =
+		(finishedWork.flags & LayoutEffectMask) !== NoFlags ||
+		(finishedWork.subtreeFlags & LayoutEffectMask) !== NoFlags;
 	if (subtreeHasEffect || rootHasEffect) {
 		// 1. beforeMutation
 		// 2. Mutation
@@ -326,6 +350,9 @@ function commitRoot(root: FiberRootNode) {
 		root.current = finishedWork; // change wip fiber tree to current after mutation
 		// 3. layout (useLayoutEffect, handle Ref)
 		commitLayoutEffects(finishedWork, root);
+		if (hasLayoutEffect) {
+			flushLayoutEffects(root.pendingLayoutEffects);
+		}
 	} else {
 		root.current = finishedWork;
 	}

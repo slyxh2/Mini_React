@@ -26,6 +26,9 @@ export function mergeLanes(laneA: Lane, laneB: Lane): Lanes {
 }
 
 export function requestUpdateLane() {
+	if (ReactCurrentBatchConfig.layoutEffect !== null) {
+		return SyncLane;
+	}
 	if (ReactCurrentBatchConfig.transition !== null) {
 		return TransitionLane;
 	}

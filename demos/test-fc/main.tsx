@@ -1,22 +1,38 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useLayoutEffect } from 'react'
 import ReactDOM from 'react-dom/client'
 
-
-function App() {
-  const [num, update] = useState(100);
-  return (
-    <ul onClick={() => update(50)}>
-      {new Array(num).fill(0).map((_, i) => {
-        return <Child key={i}>{i}</Child>;
-      })}
-    </ul>
-  );
+const App = () => {
+  // const [num, setNum] = useState(0);
+  // return <>
+  //   <button onClick={() => setNum(1)}>click</button>
+  //   {num === 0 ? <Child /> : "null"}
+  // </>
+  const [num, setNum] = useState(99);
+  useLayoutEffect(() => {
+    console.log(22);
+    setNum(88);
+  }, []);
+  return <>
+    {num}
+    {/* <Child /> */}
+  </>
 }
-
-function Child({ children }) {
-  const now = performance.now();
-  while (performance.now() - now < 4) { }
-  return <li>{children}</li>;
+const Child = () => {
+  useEffect(() => {
+    console.log('useEffect run');
+    return () => {
+      console.log('useEffect unmount')
+    }
+  })
+  useLayoutEffect(() => {
+    console.log('useLayoutEffect run');
+    return () => {
+      console.log('useLayoutEffect unmount')
+    }
+  })
+  return <div>
+    Child
+  </div>
 }
 
 const root = ReactDOM.createRoot(document.querySelector('#root')!);

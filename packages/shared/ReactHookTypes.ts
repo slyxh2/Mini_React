@@ -13,11 +13,12 @@ export type UpdateStateType = <T>() => [T, Dispatch<T>];
  */
 export type EffectCallback = () => void;
 export type EffectDeps = any[] | null;
-type UseEffectCallback = () => void | EffectCallback;
+export type UseEffectCallback = () => void | EffectCallback;
 export type UseEffectType = (
 	create: UseEffectCallback,
 	dep: EffectDeps
 ) => void;
+export type UseLayoutEffectType = UseEffectType;
 
 export interface Effect {
 	tag: EffectTag;
@@ -50,6 +51,7 @@ export type UseContextType = <T>(context: ReactContext<T>) => T;
 export interface Dispatcher {
 	useState: UseStateType;
 	useEffect: UseEffectType;
+	useLayoutEffect: UseEffectType;
 	useTransition: UseTransitionType;
 	useRef: UesRefType;
 	useContext: UseContextType;

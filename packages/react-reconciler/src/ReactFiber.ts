@@ -63,6 +63,7 @@ export type PendingPassiveEffects = {
 	unmount: Effect[];
 	update: Effect[];
 };
+export type PendingLayoutEffects = PendingPassiveEffects;
 
 export class FiberRootNode {
 	container: Container;
@@ -71,6 +72,7 @@ export class FiberRootNode {
 	pendingLanes: Lanes;
 	finishedLane: Lane;
 	pendingPassiveEffects: PendingPassiveEffects;
+	pendingLayoutEffects: PendingLayoutEffects;
 	callbackNode: CallbackNode | null;
 	callbackPriority: Lane;
 	constructor(container: Container, hostRootFiber: FiberNode) {
@@ -81,6 +83,10 @@ export class FiberRootNode {
 		this.pendingLanes = NoLanes;
 		this.finishedLane = NoLane;
 		this.pendingPassiveEffects = {
+			unmount: [],
+			update: []
+		};
+		this.pendingLayoutEffects = {
 			unmount: [],
 			update: []
 		};

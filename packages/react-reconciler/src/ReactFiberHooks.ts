@@ -10,7 +10,9 @@ import {
 	UesRefType,
 	UpdateStateType,
 	UseContextType,
+	UseEffectCallback,
 	UseEffectType,
+	UseLayoutEffectType,
 	UseStateType,
 	UseTransitionType
 } from 'shared/ReactHookTypes';
@@ -24,8 +26,13 @@ import {
 } from './ReactFiberUpdateQueue';
 import { scheduleUpdateOnFiber } from './ReactFiberWorkLoop';
 import { Lane, NoLane, requestUpdateLane } from './ReactFiberLane';
-import { Flags, PassiveEffect } from './ReactFiberFlags';
-import { HookHasEffect, Passive } from './ReactHookEffectTags';
+import { Flags, LayoutEffect, PassiveEffect } from './ReactFiberFlags';
+import {
+	EffectTag,
+	HookHasEffect,
+	Layout,
+	Passive
+} from './ReactHookEffectTags';
 
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 	lastEffect: Effect | null;
@@ -102,19 +109,26 @@ const updateState: UpdateStateType = <T>(): [T, Dispatch<T>] => {
 
 /**
  *
- * useEffect
+ * useEffect useLayoutEffect
  */
 // useEffect in mount stage
 const mountEffect: UseEffectType = (create, deps) => {
-	const hook = mountWorkInProgressHook();
-	const nextDeps = deps === undefined ? null : deps;
-	(currentRenderingFiber as FiberNode).flags |= PassiveEffect;
-	hook.memorizedState = pushEffect(
-		Passive | HookHasEffect,
-		create,
-		undefined,
-		nextDeps
-	);
+	mountEffectImpl(PassiveEffect, Passive | HookHasEffect, create, deps);
+};
+
+// useEffect in update stage
+const updateEffect: UseEffectType = (create, deps) => {
+	updateEffectImpl(PassiveEffect, Passive, create, deps);
+};
+
+// useLayoutEffect in mount stage
+const mountLayoutEffect: UseLayoutEffectType = (create, deps) => {
+	mountEffectImpl(LayoutEffect, Layout | HookHasEffect, create, deps);
+};
+
+// useLayoutEffect in update stage
+const updateLayoutEffect: UseLayoutEffectType = (create, deps) => {
+	updateEffectImpl(LayoutEffect, Layout, create, deps);
 };
 
 function pushEffect(
@@ -152,8 +166,24 @@ function pushEffect(
 	return effect;
 }
 
-// useEffect in update stage
-const updateEffect: UseEffectType = (create, deps) => {
+function mountEffectImpl(
+	fiberFlags: Flags,
+	hookFlags: EffectTag,
+	create: UseEffectCallback,
+	deps: EffectDeps
+): void {
+	const hook = mountWorkInProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	(currentRenderingFiber as FiberNode).flags |= fiberFlags;
+	hook.memorizedState = pushEffect(hookFlags, create, undefined, nextDeps);
+}
+
+function updateEffectImpl(
+	fiberFlags: Flags,
+	hookFlags: EffectTag,
+	create: UseEffectCallback,
+	deps: EffectDeps
+) {
 	const hook = updateWorkInProgressHook();
 	const nextDeps = deps === undefined ? null : deps;
 	let destory: EffectCallback | void = undefined;
@@ -163,19 +193,19 @@ const updateEffect: UseEffectType = (create, deps) => {
 		if (nextDeps !== null) {
 			const prevDeps = prevEffect.deps;
 			if (areHookInputsEqual(nextDeps, prevDeps)) {
-				hook.memorizedState = pushEffect(Passive, create, destory, nextDeps);
+				hook.memorizedState = pushEffect(hookFlags, create, destory, nextDeps);
 				return;
 			}
 		}
 	}
-	(currentRenderingFiber as FiberNode).flags |= PassiveEffect;
+	(currentRenderingFiber as FiberNode).flags |= fiberFlags;
 	hook.memorizedState = pushEffect(
-		Passive | HookHasEffect,
+		hookFlags | HookHasEffect,
 		create,
 		destory,
 		nextDeps
 	);
-};
+}
 
 const areHookInputsEqual = (nextDeps: EffectDeps, prevDeps: EffectDeps) => {
 	if (prevDeps === null || nextDeps === null) return false;
@@ -250,6 +280,7 @@ const readContext: UseContextType = <T>(context: ReactContext<T>) => {
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
+	useLayoutEffect: mountLayoutEffect,
 	useTransition: mountTransition,
 	useRef: mountRef,
 	useContext: readContext
@@ -258,6 +289,7 @@ const HooksDispatcherOnMount: Dispatcher = {
 const HooksDispatcherOnUpdate: Dispatcher = {
 	useState: updateState,
 	useEffect: updateEffect,
+	useLayoutEffect: updateLayoutEffect,
 	useTransition: updateTransition,
 	useRef: updateRef,
 	useContext: readContext
