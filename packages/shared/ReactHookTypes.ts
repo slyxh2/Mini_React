@@ -1,5 +1,5 @@
 import { Update } from 'react-reconciler/src/ReactFiberUpdateQueue';
-import { Action, ReactContext } from './ReactTypes';
+import { Action, ReactContext, Usable } from './ReactTypes';
 import { EffectTag } from 'react-reconciler/src/ReactHookEffectTags';
 
 /**
@@ -48,6 +48,11 @@ export type UesRefType = <T>(initialValue: T) => { current: T };
  */
 export type UseContextType = <T>(context: ReactContext<T>) => T;
 
+/**
+ * use
+ */
+export type UseType = <T>(usable: Usable<T>) => T;
+
 export interface Dispatcher {
 	useState: UseStateType;
 	useEffect: UseEffectType;
@@ -55,6 +60,7 @@ export interface Dispatcher {
 	useTransition: UseTransitionType;
 	useRef: UesRefType;
 	useContext: UseContextType;
+	use: UseType;
 }
 
 export interface Hook {

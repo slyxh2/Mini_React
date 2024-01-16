@@ -1,4 +1,10 @@
-import { Action, Props, ReactContext } from 'shared/ReactTypes';
+import {
+	Action,
+	Props,
+	ReactContext,
+	Thenable,
+	Usable
+} from 'shared/ReactTypes';
 import { FiberNode } from './ReactFiber';
 import {
 	Dispatch,
@@ -33,6 +39,8 @@ import {
 	Layout,
 	Passive
 } from './ReactHookEffectTags';
+import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols';
+import { trackUsedThenable } from './ReactThenable';
 
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 	lastEffect: Effect | null;
@@ -277,13 +285,31 @@ const readContext: UseContextType = <T>(context: ReactContext<T>) => {
 	return value;
 };
 
+/**
+ * use
+ */
+const use = <T>(usable: Usable<T>): T => {
+	if (usable !== null && typeof usable === 'object') {
+		if (typeof (<Thenable<T>>usable).then === 'function') {
+			// Thenable
+			const thenable = <Thenable<T>>usable;
+			return trackUsedThenable(thenable);
+		} else if ((<ReactContext<T>>usable).$$typeof === REACT_CONTEXT_TYPE) {
+			// ReactContext
+			return readContext(<ReactContext<T>>usable);
+		}
+	}
+	throw new Error('not support use params: ' + usable);
+};
+
 const HooksDispatcherOnMount: Dispatcher = {
 	useState: mountState,
 	useEffect: mountEffect,
 	useLayoutEffect: mountLayoutEffect,
 	useTransition: mountTransition,
 	useRef: mountRef,
-	useContext: readContext
+	useContext: readContext,
+	use: use
 };
 
 const HooksDispatcherOnUpdate: Dispatcher = {
@@ -292,7 +318,8 @@ const HooksDispatcherOnUpdate: Dispatcher = {
 	useLayoutEffect: updateLayoutEffect,
 	useTransition: updateTransition,
 	useRef: updateRef,
-	useContext: readContext
+	useContext: readContext,
+	use: use
 };
 
 export function renderWithHooks(wip: FiberNode, lane: Lane) {
@@ -397,4 +424,10 @@ function createFCUpdateQueue<State>() {
 	const updateQueue = createUpdateQueue<State>() as FCUpdateQueue<State>;
 	updateQueue.lastEffect = null;
 	return updateQueue;
+}
+
+export function resetHooksOnUnwind() {
+	currentRenderingFiber = null;
+	currentHook = null;
+	workInProgressHook = null;
 }

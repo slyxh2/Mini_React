@@ -6,7 +6,9 @@ import {
 } from './src/ReactCurrentDispatcher';
 import { jsx, isVaildElement as isVaildElementFn } from './src/jsx';
 
+export { REACT_SUSPENSE_TYPE as Suspense } from 'shared/ReactSymbols';
 export { createContext } from './src/ReactContext';
+
 export const useState: Dispatcher['useState'] = (initialState: any) => {
 	const dispathcer = resolveDispatcher();
 	return dispathcer.useState(initialState);
@@ -37,6 +39,11 @@ export const useRef: Dispatcher['useRef'] = (initialValue) => {
 export const useContext: Dispatcher['useContext'] = (initialValue) => {
 	const dispathcer = resolveDispatcher();
 	return dispathcer.useContext(initialValue);
+};
+
+export const use: Dispatcher['use'] = (usable) => {
+	const dispathcer = resolveDispatcher();
+	return dispathcer.use(usable);
 };
 
 export const __SECRET__INTERNAL__ = {

@@ -3,8 +3,12 @@ import {
 	Instance,
 	appendChildToContainer,
 	commitUpdate,
+	hideInstance,
+	hideTextInstance,
 	insertChildToContainer,
-	removeChild
+	removeChild,
+	unhideInstance,
+	unhideTextInstance
 } from 'hostConfig';
 import { FiberNode, FiberRootNode, PendingPassiveEffects } from './ReactFiber';
 import {
@@ -18,13 +22,15 @@ import {
 	PassiveMask,
 	Placement,
 	Ref,
-	Update
+	Update,
+	Visibility
 } from './ReactFiberFlags';
 import {
 	FunctionComponent,
 	HostComponent,
 	HostRoot,
-	HostText
+	HostText,
+	OffscreenComponent
 } from './ReactWorkTags';
 import { FCUpdateQueue } from './ReactFiberHooks';
 import { EffectTag, HookHasEffect } from './ReactHookEffectTags';
@@ -75,19 +81,80 @@ function commitMutationEffectsOnFiber(
 	if ((flags & Ref) !== NoFlags && tag === HostComponent) {
 		safelyDetachRef(finishedWork);
 	}
-}
-
-// unbind ref
-function safelyDetachRef(current: FiberNode) {
-	const ref = current.ref;
-	if (ref !== null) {
-		if (typeof ref === 'function') {
-			ref(null);
-		} else {
-			ref.current = null;
-		}
+	if ((flags & Visibility) !== NoFlags && tag === OffscreenComponent) {
+		const isHidden = finishedWork.pendingProps.mode === 'hidden';
+		hideOrUnhideAllChildren(finishedWork, isHidden);
+		finishedWork.flags &= ~Visibility;
 	}
 }
+
+function hideOrUnhideAllChildren(finishedWork: FiberNode, isHidden: boolean) {
+	findHostSubTreeNode(finishedWork, (hostRoot) => {
+		const instance = hostRoot.stateNode;
+		if (hostRoot.tag === HostComponent) {
+			isHidden ? hideInstance(instance) : unhideInstance(instance);
+		} else if (hostRoot.tag === HostText) {
+			isHidden
+				? hideTextInstance(instance)
+				: unhideTextInstance(instance, hostRoot.memorizedProps.content);
+		}
+	});
+}
+
+function findHostSubTreeNode(
+	finishedWork: FiberNode,
+	callback: (hostSubtreeNode: FiberNode) => void
+) {
+	let node = finishedWork;
+	let hostSubtreeRoot = null;
+
+	while (true) {
+		if (node.tag === HostComponent) {
+			if (hostSubtreeRoot === null) {
+				hostSubtreeRoot = node;
+				callback(node);
+			}
+		} else if (node.tag === HostText) {
+			if (hostSubtreeRoot === null) {
+				callback(node);
+			}
+		} else if (
+			node.tag === OffscreenComponent &&
+			node.pendingProps.mode === 'hidden' &&
+			node !== finishedWork
+		) {
+			// Supense inside Supense, do noting
+		} else if (node.child !== null) {
+			node.child.return = node;
+			node = node.child;
+			continue;
+		}
+
+		if (node.child) {
+			node.child.return = node;
+			node = node.child;
+			continue;
+		}
+		if (node === finishedWork) {
+			return;
+		}
+		while (node.sibling === null) {
+			if (node.return === null || node.return === finishedWork) {
+				return;
+			}
+			if (hostSubtreeRoot === node) {
+				hostSubtreeRoot = null;
+			}
+			node = node.return;
+		}
+		if (hostSubtreeRoot === node) {
+			hostSubtreeRoot = null;
+		}
+		node.sibling.return = node.return;
+		node = node.sibling;
+	}
+}
+
 function commitLayoutEffectsOnFiber(
 	finishedWork: FiberNode,
 	root: FiberRootNode
@@ -100,6 +167,18 @@ function commitLayoutEffectsOnFiber(
 	if ((flags & LayoutEffect) !== NoFlags) {
 		collectLayoutEffect(finishedWork, root, 'update');
 		finishedWork.flags &= ~LayoutEffect;
+	}
+}
+
+// unbind ref
+function safelyDetachRef(current: FiberNode) {
+	const ref = current.ref;
+	if (ref !== null) {
+		if (typeof ref === 'function') {
+			ref(null);
+		} else {
+			ref.current = null;
+		}
 	}
 }
 
